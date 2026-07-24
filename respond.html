@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Response — Dispatch</title>
+<script src="config.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    line-height: 1.4;
+  }
+  h1 { font-size: 1.25rem; margin-bottom: 1rem; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin: 0 0 1rem; }
+  legend { padding: 0 0.4rem; font-weight: 600; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 500; }
+  input, select {
+    width: 100%; box-sizing: border-box; padding: 0.5rem; font-size: 1rem;
+    border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit;
+  }
+  button {
+    font-size: 1rem; padding: 0.6rem 1rem; border-radius: 6px; border: none;
+    cursor: pointer; margin-top: 0.75rem;
+  }
+  .primary { background: #2563eb; color: #fff; }
+  .danger { background: #dc2626; color: #fff; }
+  .secondary { background: #8884; color: inherit; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .row > button { flex: 1; }
+  #message { margin: 1rem 0; padding: 0.75rem; border-radius: 6px; display: none; }
+  #message.info { display: block; background: #2563eb22; }
+  #message.error { display: block; background: #dc262622; }
+  #message.success { display: block; background: #16a34a22; }
+  .hidden { display: none !important; }
+  .trip-detail { margin: 0.15rem 0; }
+  .trip-detail b { display: inline-block; min-width: 6.5rem; }
+  .driver-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+  .driver-list button { margin-top: 0; text-align: left; }
+  small { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!--
+  Front-end <-> n8n contract this page relies on (Step 6 of the build order
+  implements the n8n side of this):
+
+  GET  {lookupWebhookUrl}?tripId=T-0001            (reuses Step 3's endpoint)
+       Header: X-Dispatch-Secret: <sharedSecret>
+       200 -> { tripId, tripDate, pickupTime, pickupLocation, dropoffLocation,
+                durationMin, status }
+       404 -> trip not found
+
+  GET  {driversWebhookUrl}                         (calendar-origin flow only)
+       Header: X-Dispatch-Secret: <sharedSecret>
+       200 -> [ { driverId, name }, ... ]  (active drivers only, no phone
+              numbers sent to the client — last-4 is checked server-side)
+
+  POST {respondWebhookUrl}
+       Header: X-Dispatch-Secret: <sharedSecret>
+       Body (personalized link):    { tripId, driverId, action: 'accept'|'decline' }
+       Body (calendar-origin link): { tripId, driverName, last4, action: 'accept'|'decline' }
+       200 -> { tripId, status, message }
+       400 -> { message } (validation, last-4 mismatch — kept generic, doesn't
+              reveal whether the name or the digits were wrong)
+       404 -> { message } (trip or driver not found)
+       409 -> { message } (trip already Filled by someone else)
+-->
+
+<div id="gate">
+  <h1>Trip Response — Dispatch</h1>
+  <p>Enter the department passphrase to continue.</p>
+  <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
+  <button class="primary" id="gate-submit">Enter</button>
+  <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem;">Incorrect passphrase.</div>
+</div>
+
+<div id="app" class="hidden">
+  <h1>Trip Response — Dispatch</h1>
+
+  <div id="message"></div>
+
+  <fieldset id="trip-fieldset" class="hidden">
+    <legend>Trip <span id="trip-id-value"></span></legend>
+    <div class="trip-detail"><b>Date:</b> <span id="trip-date-value"></span></div>
+    <div class="trip-detail"><b>Pickup:</b> <span id="pickup-time-value"></span> — <span id="pickup-location-value"></span></div>
+    <div class="trip-detail"><b>Dropoff:</b> <span id="dropoff-location-value"></span></div>
+    <div class="trip-detail"><b>Duration:</b> <span id="duration-value"></span> min</div>
+  </fieldset>
+
+  <fieldset id="picker-fieldset" class="hidden">
+    <legend>Who are you?</legend>
+    <p><small>Select your name from the roster.</small></p>
+    <div class="driver-list" id="driver-list"></div>
+  </fieldset>
+
+  <fieldset id="confirm-fieldset" class="hidden">
+    <legend>Confirm it's you</legend>
+    <p>Selected: <b id="confirm-driver-name"></b> <button class="secondary" id="confirm-change-name" style="margin-top:0; padding:0.2rem 0.5rem;">change</button></p>
+    <label for="last4-input">Last 4 digits of your phone number</label>
+    <input type="tel" id="last4-input" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234">
+  </fieldset>
+
+  <fieldset id="action-fieldset" class="hidden">
+    <legend>Your response</legend>
+    <div class="row">
+      <button class="primary" id="accept-btn">Accept</button>
+      <button class="danger" id="decline-btn">Decline</button>
+    </div>
+  </fieldset>
+</div>
+
+<script>
+(function () {
+  const cfg = window.APP_CONFIG;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Gate ----
+  const gate = $('gate'), app = $('app');
+  if (!cfg || !cfg.sharedSecret) {
+    gate.innerHTML = '<p style="color:#dc2626;">config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.</p>';
+  } else if (sessionStorage.getItem('dispatchGateOk') === '1') {
+    showApp();
+  }
+
+  $('gate-submit').addEventListener('click', () => {
+    if ($('gate-input').value === cfg.sharedSecret) {
+      sessionStorage.setItem('dispatchGateOk', '1');
+      showApp();
+    } else {
+      $('gate-error').classList.remove('hidden');
+    }
+  });
+
+  // ---- State ----
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get('tripId');
+  const driverId = params.get('driverId'); // present only on personalized links
+  let tripStatus = null;
+  let selectedDriverName = null;
+
+  function showApp() {
+    gate.classList.add('hidden');
+    app.classList.remove('hidden');
+    if (!tripId) {
+      showMessage('error', 'No trip specified in this link.');
+      return;
+    }
+    loadTrip();
+  }
+
+  // ---- Load trip details ----
+  function loadTrip() {
+    showMessage('info', 'Loading trip ' + tripId + '...');
+    const url = cfg.lookupWebhookUrl + '?tripId=' + encodeURIComponent(tripId);
+    fetch(url, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+      .then((res) => {
+        if (res.status === 404) throw new Error('Trip ' + tripId + ' not found.');
+        if (!res.ok) throw new Error('Lookup failed (' + res.status + ').');
+        return res.json();
+      })
+      .then((trip) => {
+        tripStatus = trip.status;
+        $('trip-id-value').textContent = trip.tripId;
+        $('trip-date-value').textContent = trip.tripDate || '';
+        $('pickup-time-value').textContent = trip.pickupTime || '';
+        $('pickup-location-value').textContent = trip.pickupLocation || '';
+        $('dropoff-location-value').textContent = trip.dropoffLocation || '';
+        $('duration-value').textContent = trip.durationMin || '';
+        $('trip-fieldset').classList.remove('hidden');
+        clearMessage();
+
+        if (trip.status === 'Cancelled') {
+          showMessage('info', 'This trip has been cancelled — no response needed.');
+          return;
+        }
+        if (trip.status === 'Filled') {
+          showMessage('info', 'Sorry, this trip has already been taken by another driver.');
+          return;
+        }
+
+        if (driverId) {
+          // Personalized link: identity already proven by the private SMS link.
+          $('action-fieldset').classList.remove('hidden');
+        } else {
+          // Calendar-origin link: pick name, then confirm last 4 of phone.
+          loadDrivers();
+        }
+      })
+      .catch((err) => showMessage('error', err.message));
+  }
+
+  // ---- Calendar-origin: driver picker ----
+  function loadDrivers() {
+    fetch(cfg.driversWebhookUrl, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Could not load driver roster (' + res.status + ').');
+        return res.json();
+      })
+      .then((drivers) => {
+        const list = $('driver-list');
+        list.innerHTML = '';
+        drivers.forEach((d) => {
+          const btn = document.createElement('button');
+          btn.className = 'secondary';
+          btn.textContent = d.name;
+          btn.addEventListener('click', () => selectDriver(d.name));
+          list.appendChild(btn);
+        });
+        $('picker-fieldset').classList.remove('hidden');
+      })
+      .catch((err) => showMessage('error', err.message));
+  }
+
+  function selectDriver(name) {
+    selectedDriverName = name;
+    $('confirm-driver-name').textContent = name;
+    $('picker-fieldset').classList.add('hidden');
+    $('confirm-fieldset').classList.remove('hidden');
+    $('action-fieldset').classList.remove('hidden');
+  }
+
+  $('confirm-change-name').addEventListener('click', () => {
+    selectedDriverName = null;
+    $('last4-input').value = '';
+    $('confirm-fieldset').classList.add('hidden');
+    $('action-fieldset').classList.add('hidden');
+    $('picker-fieldset').classList.remove('hidden');
+  });
+
+  // ---- Accept / Decline ----
+  $('accept-btn').addEventListener('click', () => respond('accept'));
+  $('decline-btn').addEventListener('click', () => respond('decline'));
+
+  function respond(action) {
+    const payload = { tripId, action };
+    if (driverId) {
+      payload.driverId = driverId;
+    } else {
+      const last4 = $('last4-input').value.trim();
+      if (!selectedDriverName) {
+        showMessage('error', 'Select your name first.');
+        return;
+      }
+      if (!/^\d{4}$/.test(last4)) {
+        showMessage('error', 'Enter the last 4 digits of your phone number.');
+        return;
+      }
+      payload.driverName = selectedDriverName;
+      payload.last4 = last4;
+    }
+
+    setActionButtons(true);
+    showMessage('info', action === 'accept' ? 'Submitting acceptance...' : 'Submitting decline...');
+    fetch(cfg.respondWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dispatch-Secret': cfg.sharedSecret
+      },
+      body: JSON.stringify(payload)
+    })
+      .then((res) => res.json().then((body) => ({ ok: res.ok, status: res.status, body })))
+      .then(({ ok, status, body }) => {
+        if (!ok) {
+          throw new Error(body.message || (status === 409 ? 'Sorry, already taken.' : 'Request failed.'));
+        }
+        showMessage('success', body.message || 'Response recorded.');
+        $('action-fieldset').classList.add('hidden');
+        $('confirm-fieldset').classList.add('hidden');
+        $('picker-fieldset').classList.add('hidden');
+      })
+      .catch((err) => {
+        showMessage('error', err.message);
+        setActionButtons(false);
+      });
+  }
+
+  function setActionButtons(disabled) {
+    $('accept-btn').disabled = disabled;
+    $('decline-btn').disabled = disabled;
+  }
+
+  // ---- Helpers ----
+  function showMessage(type, text) {
+    const el = $('message');
+    el.className = type;
+    el.textContent = text;
+  }
+  function clearMessage() {
+    const el = $('message');
+    el.className = '';
+    el.textContent = '';
+  }
+})();
+</script>
+</body>
+</html>
