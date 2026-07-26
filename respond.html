@@ -53,8 +53,14 @@
   GET  {lookupWebhookUrl}?tripId=T-0001            (reuses Step 3's endpoint)
        Header: X-Dispatch-Secret: <sharedSecret>
        200 -> { tripId, tripDate, pickupTime, pickupLocation, dropoffLocation,
-                durationMin, status }
+                durationMin, status, pendingReconfirmation }
        404 -> trip not found
+
+  pendingReconfirmation (Step 9): true when a Filled trip's date/location
+  changed after the assigned driver accepted — that driver's personalized
+  link shows Accept/Decline again instead of the normal "already taken"
+  block. Enforced server-side (driver identity match); this flag only
+  controls the UI gate.
 
   GET  {driversWebhookUrl}                         (calendar-origin flow only)
        Header: X-Dispatch-Secret: <sharedSecret>
@@ -180,6 +186,11 @@
           return;
         }
         if (trip.status === 'Filled') {
+          if (driverId && trip.pendingReconfirmation) {
+            showMessage('info', 'This trip\'s details changed since you accepted — please reconfirm or decline.');
+            $('action-fieldset').classList.remove('hidden');
+            return;
+          }
           showMessage('info', 'Sorry, this trip has already been taken by another driver.');
           return;
         }
