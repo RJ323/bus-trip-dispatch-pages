@@ -18,11 +18,14 @@ window.APP_CONFIG = {
   // { driverName, last4 } for calendar-origin links)
   respondWebhookUrl: 'https://your-n8n-instance/webhook/respond',
 
-  // Sent as the X-Dispatch-Secret header on every request, and used by the
-  // client-side gate below. This is a deterrent against casual/wrong-link
-  // access for an internal department tool, NOT real security — anyone who
-  // loads this page can read this value from the page source or network
-  // tab. Real enforcement of who can write to the Sheet happens in n8n,
-  // which should reject any request missing/mismatching this header.
+  // Sent as the X-Dispatch-Secret header on every request. intake.html also
+  // uses this for its passphrase gate; respond.html no longer has a gate
+  // (drivers already prove identity via the personalized link / last-4
+  // check), but still sends this header automatically on every request.
+  // This is a deterrent against casual/wrong-link access for an internal
+  // department tool, NOT real security — anyone who loads a page can read
+  // this value from the page source or network tab. Real enforcement of
+  // who can write to the Sheet happens in n8n, which rejects any request
+  // missing/mismatching this header.
   sharedSecret: 'replace-with-shared-secret'
 };

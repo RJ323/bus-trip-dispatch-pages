@@ -78,15 +78,7 @@
        409 -> { message } (trip already Filled by someone else)
 -->
 
-<div id="gate">
-  <h1>Trip Response — Dispatch</h1>
-  <p>Enter the department passphrase to continue.</p>
-  <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
-  <button class="primary" id="gate-submit">Enter</button>
-  <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem;">Incorrect passphrase.</div>
-</div>
-
-<div id="app" class="hidden">
+<div id="app">
   <h1>Trip Response — Dispatch</h1>
 
   <div id="message"></div>
@@ -126,23 +118,6 @@
   const cfg = window.APP_CONFIG;
   const $ = (id) => document.getElementById(id);
 
-  // ---- Gate ----
-  const gate = $('gate'), app = $('app');
-  if (!cfg || !cfg.sharedSecret) {
-    gate.innerHTML = '<p style="color:#dc2626;">config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.</p>';
-  } else if (sessionStorage.getItem('dispatchGateOk') === '1') {
-    showApp();
-  }
-
-  $('gate-submit').addEventListener('click', () => {
-    if ($('gate-input').value === cfg.sharedSecret) {
-      sessionStorage.setItem('dispatchGateOk', '1');
-      showApp();
-    } else {
-      $('gate-error').classList.remove('hidden');
-    }
-  });
-
   // ---- State ----
   const params = new URLSearchParams(location.search);
   const tripId = params.get('tripId');
@@ -150,13 +125,11 @@
   let tripStatus = null;
   let selectedDriverName = null;
 
-  function showApp() {
-    gate.classList.add('hidden');
-    app.classList.remove('hidden');
-    if (!tripId) {
-      showMessage('error', 'No trip specified in this link.');
-      return;
-    }
+  if (!cfg || !cfg.sharedSecret) {
+    showMessage('error', 'config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.');
+  } else if (!tripId) {
+    showMessage('error', 'No trip specified in this link.');
+  } else {
     loadTrip();
   }
 
