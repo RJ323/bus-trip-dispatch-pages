@@ -101,7 +101,7 @@
   <fieldset id="trip-fieldset" class="hidden">
     <legend>Trip <span id="trip-id-value"></span></legend>
     <div class="trip-detail"><b>Date:</b> <span id="trip-date-value"></span></div>
-    <div class="trip-detail"><b>Pickup:</b> <span id="pickup-time-value"></span> — <span id="pickup-location-value"></span></div>
+    <div class="trip-detail"><b>Pickup:</b> <span id="pickup-time-value"></span> — <a id="pickup-location-value" target="_blank" rel="noopener"></a></div>
     <div class="trip-detail"><b>Dropoff:</b> <a id="dropoff-location-value" target="_blank" rel="noopener"></a></div>
     <div class="trip-detail"><b>Duration:</b> <span id="duration-value"></span></div>
   </fieldset>
@@ -163,7 +163,9 @@
         $('trip-id-value').textContent = trip.tripId;
         $('trip-date-value').textContent = trip.tripDate || '';
         $('pickup-time-value').textContent = trip.pickupTime || '';
-        $('pickup-location-value').textContent = trip.pickupLocation || '';
+        const pickupEl = $('pickup-location-value');
+        pickupEl.textContent = trip.pickupLocation || '';
+        pickupEl.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(trip.pickupLocation || '');
         const dropoffEl = $('dropoff-location-value');
         dropoffEl.textContent = trip.dropoffLocation || '';
         dropoffEl.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(trip.dropoffLocation || '');
