@@ -11,27 +11,19 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     margin: 0;
     line-height: 1.4;
-    background: #f1f5f9;
+    background: #f5f5f5;
   }
   @media (prefers-color-scheme: dark) {
-    body { background: #0b1220; }
+    body { background: #18181b; }
   }
-  .site-header {
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
-    color: #fff;
-  }
-  .site-header-inner {
+  .site-header { padding: 1rem 1rem 0.5rem; }
+  .site-header img {
+    display: block;
+    width: 100%;
     max-width: 480px;
+    height: auto;
     margin: 0 auto;
-    padding: 1.1rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
   }
-  .brand-icon { width: 2.1rem; height: 2.1rem; color: #fff; flex-shrink: 0; }
-  .brand-text { line-height: 1.25; }
-  .brand-title { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em; }
-  .brand-subtitle { font-size: 0.7rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.04em; }
   .page-content { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
   fieldset { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin: 0 0 1rem; background: #ffffffaa; }
   @media (prefers-color-scheme: dark) {
@@ -100,20 +92,7 @@
 -->
 
 <header class="site-header">
-  <div class="site-header-inner">
-    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="6" width="20" height="10.5" rx="2.2" fill="currentColor" opacity="0.95"/>
-      <rect x="4.5" y="8.3" width="3.8" height="3.4" rx="0.6" fill="#1e3a8a"/>
-      <rect x="10.1" y="8.3" width="3.8" height="3.4" rx="0.6" fill="#1e3a8a"/>
-      <rect x="15.7" y="8.3" width="3.8" height="3.4" rx="0.6" fill="#1e3a8a"/>
-      <circle cx="7" cy="17.5" r="1.9" fill="currentColor"/>
-      <circle cx="17" cy="17.5" r="1.9" fill="currentColor"/>
-    </svg>
-    <div class="brand-text">
-      <div class="brand-title">Trip Dispatch</div>
-      <div class="brand-subtitle">Driver Response</div>
-    </div>
-  </div>
+  <img src="banner.png" alt="Trip Dispatch">
 </header>
 
 <div id="app" class="page-content">
