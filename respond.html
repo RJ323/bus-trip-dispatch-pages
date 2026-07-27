@@ -102,8 +102,8 @@
     <legend>Trip <span id="trip-id-value"></span></legend>
     <div class="trip-detail"><b>Date:</b> <span id="trip-date-value"></span></div>
     <div class="trip-detail"><b>Pickup:</b> <span id="pickup-time-value"></span> — <span id="pickup-location-value"></span></div>
-    <div class="trip-detail"><b>Dropoff:</b> <span id="dropoff-location-value"></span></div>
-    <div class="trip-detail"><b>Duration:</b> <span id="duration-value"></span> min</div>
+    <div class="trip-detail"><b>Dropoff:</b> <a id="dropoff-location-value" target="_blank" rel="noopener"></a></div>
+    <div class="trip-detail"><b>Duration:</b> <span id="duration-value"></span></div>
   </fieldset>
 
   <fieldset id="picker-fieldset" class="hidden">
@@ -164,8 +164,10 @@
         $('trip-date-value').textContent = trip.tripDate || '';
         $('pickup-time-value').textContent = trip.pickupTime || '';
         $('pickup-location-value').textContent = trip.pickupLocation || '';
-        $('dropoff-location-value').textContent = trip.dropoffLocation || '';
-        $('duration-value').textContent = trip.durationMin || '';
+        const dropoffEl = $('dropoff-location-value');
+        dropoffEl.textContent = trip.dropoffLocation || '';
+        dropoffEl.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(trip.dropoffLocation || '');
+        $('duration-value').textContent = formatDuration(trip.durationMin);
         $('trip-fieldset').classList.remove('hidden');
         clearMessage();
 
@@ -286,6 +288,14 @@
   }
 
   // ---- Helpers ----
+  function formatDuration(durationMin) {
+    const total = Number(durationMin) || 0;
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (h && m) return h + 'h ' + m + 'm';
+    if (h) return h + 'h';
+    return m + 'm';
+  }
   function showMessage(type, text) {
     const el = $('message');
     el.className = type;
