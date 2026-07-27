@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Intake — Dispatch</title>
+<script src="config.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+    line-height: 1.4;
+    background: #f5f5f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #18181b; }
+  }
+  .site-header { padding: 1rem 1rem 0.5rem; }
+  .site-header img {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    margin: 0 auto;
+  }
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin: 0 0 1rem; background: #ffffffaa; }
+  @media (prefers-color-scheme: dark) {
+    fieldset { background: #ffffff08; }
+  }
+  legend { padding: 0 0.4rem; font-weight: 600; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 500; }
+  input, select {
+    width: 100%; box-sizing: border-box; padding: 0.5rem; font-size: 1rem;
+    border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit;
+  }
+  input[type="checkbox"] {
+    width: auto; padding: 0; border: none; background: none; margin-right: 0.4rem; vertical-align: middle;
+  }
+  button {
+    font-size: 1rem; padding: 0.6rem 1rem; border-radius: 6px; border: none;
+    cursor: pointer; margin-top: 0.75rem;
+  }
+  .primary { background: #2563eb; color: #fff; }
+  .danger { background: #dc2626; color: #fff; }
+  .secondary { background: #8884; color: inherit; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .row > button, .row > div { flex: 1; }
+  #message { margin: 1rem 0; padding: 0.75rem; border-radius: 6px; display: none; }
+  #message.info { display: block; background: #2563eb22; }
+  #message.error { display: block; background: #dc262622; }
+  #message.success { display: block; background: #16a34a22; }
+  .hidden { display: none !important; }
+  .status-badge { font-weight: 600; }
+  small { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!--
+  Front-end <-> n8n contract this page relies on (Step 3 of the build order
+  implements the n8n side of this):
+
+  GET  {lookupWebhookUrl}?tripId=T-0001
+       Header: X-Dispatch-Secret: <sharedSecret>
+       200 -> { tripId, tripDate, pickupTime, pickupLocation, dropoffLocation,
+                durationMin, status, riderName1, riderPhone1, riderName2, riderPhone2,
+                escortName, escortPhone }
+       404 -> trip not found
+
+  POST {intakeWebhookUrl}
+       Header: X-Dispatch-Secret: <sharedSecret>
+       Body (create): { action: 'create', tripDate, pickupTime,
+                         pickupLocation, dropoffLocation, durationMin,
+                         riderName1?, riderPhone1?, riderName2?, riderPhone2?,
+                         escortName?, escortPhone? }
+       Body (update): body above + { action: 'update', tripId }
+       Body (cancel): { action: 'cancel', tripId }
+       200 -> { tripId, status, message }
+       4xx -> { message } (e.g. already Filled, validation failure)
+
+  Riders (max 2) and the vehicle escort are optional, recorded for reference
+  only (no notification tied to driver acceptance) — a separate scheduled
+  day-before reminder text goes out to driver/riders/escort, handled
+  entirely in n8n.
+-->
+
+<header class="site-header">
+  <img src="banner.png" alt="Trip Dispatch">
+</header>
+
+<div id="gate" class="page-content">
+  <p>Enter passphrase to continue.</p>
+  <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
+  <button class="primary" id="gate-submit">Enter</button>
+  <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem;">Incorrect passphrase.</div>
+</div>
+
+<div id="app" class="page-content hidden">
+  <div class="row">
+    <button class="secondary" id="mode-create">Create New Trip</button>
+    <button class="secondary" id="mode-edit">Load Existing Trip</button>
+  </div>
+
+  <div id="message"></div>
+
+  <fieldset id="lookup-fieldset" class="hidden">
+    <legend>Find Trip</legend>
+    <label for="lookup-trip-id">Trip ID</label>
+    <input type="text" id="lookup-trip-id" placeholder="T-0001">
+    <button class="primary" id="lookup-submit">Load Trip</button>
+  </fieldset>
+
+  <form id="trip-form" class="hidden">
+    <fieldset>
+      <legend id="form-legend">New Trip</legend>
+
+      <div id="trip-id-display" class="hidden">
+        <small>Trip ID: <span id="trip-id-value"></span> — Status: <span id="trip-status-value" class="status-badge"></span></small>
+      </div>
+
+      <label for="trip-date">Trip Date</label>
+      <input type="date" id="trip-date" required>
+
+      <label for="pickup-time">Pickup Time</label>
+      <input type="time" id="pickup-time" required>
+
+      <label for="pickup-location">Pickup Location</label>
+      <input type="text" id="pickup-location" required>
+
+      <label for="dropoff-location">Dropoff Location</label>
+      <input type="text" id="dropoff-location" required>
+
+      <label>Duration</label>
+      <div class="row">
+        <div>
+          <input type="number" id="duration-hours" min="0" step="1" placeholder="Hours" inputmode="numeric" aria-label="Duration hours">
+        </div>
+        <div>
+          <input type="number" id="duration-minutes" min="0" max="59" step="1" placeholder="Minutes" inputmode="numeric" aria-label="Duration minutes">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Riders (optional, max 2)</legend>
+
+      <label><input type="checkbox" id="riders-toggle"> Add rider(s)</label>
+
+      <div id="riders-fields" class="hidden">
+        <label for="rider1-name">Rider 1 Name</label>
+        <input type="text" id="rider1-name">
+
+        <label for="rider1-phone">Rider 1 Phone</label>
+        <input type="tel" id="rider1-phone">
+
+        <label for="rider2-name">Rider 2 Name</label>
+        <input type="text" id="rider2-name">
+
+        <label for="rider2-phone">Rider 2 Phone</label>
+        <input type="tel" id="rider2-phone">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Vehicle Escort (optional)</legend>
+
+      <label><input type="checkbox" id="escort-toggle"> Vehicle escort needed</label>
+
+      <div id="escort-fields" class="hidden">
+        <label for="escort-name">Escort Name</label>
+        <input type="text" id="escort-name">
+
+        <label for="escort-phone">Escort Phone</label>
+        <input type="tel" id="escort-phone">
+      </div>
+    </fieldset>
+
+    <div class="row">
+      <button type="submit" class="primary" id="save-btn">Save Trip</button>
+      <button type="button" class="danger hidden" id="cancel-trip-btn">Cancel Trip</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const cfg = window.APP_CONFIG;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Gate ----
+  const gate = $('gate'), app = $('app');
+  if (!cfg || !cfg.sharedSecret) {
+    gate.innerHTML = '<p style="color:#dc2626;">config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.</p>';
+  } else if (sessionStorage.getItem('dispatchGateOk') === '1') {
+    showApp();
+  }
+
+  $('gate-submit').addEventListener('click', () => {
+    if ($('gate-input').value === cfg.sharedSecret) {
+      sessionStorage.setItem('dispatchGateOk', '1');
+      showApp();
+    } else {
+      $('gate-error').classList.remove('hidden');
+    }
+  });
+
+  function showApp() {
+    gate.classList.add('hidden');
+    app.classList.remove('hidden');
+    const params = new URLSearchParams(location.search);
+    const tripId = params.get('tripId');
+    if (tripId) {
+      switchMode('edit');
+      $('lookup-trip-id').value = tripId;
+      loadTrip(tripId);
+    }
+  }
+
+  // ---- Mode switching ----
+  let mode = null; // 'create' | 'edit'
+  let loadedTripId = null;
+
+  $('mode-create').addEventListener('click', () => switchMode('create'));
+  $('mode-edit').addEventListener('click', () => switchMode('edit'));
+
+  // ---- Riders / Vehicle Escort toggles ----
+  $('riders-toggle').addEventListener('change', () => {
+    const on = $('riders-toggle').checked;
+    $('riders-fields').classList.toggle('hidden', !on);
+    if (!on) {
+      $('rider1-name').value = ''; $('rider1-phone').value = '';
+      $('rider2-name').value = ''; $('rider2-phone').value = '';
+    }
+  });
+  $('escort-toggle').addEventListener('change', () => {
+    const on = $('escort-toggle').checked;
+    $('escort-fields').classList.toggle('hidden', !on);
+    if (!on) {
+      $('escort-name').value = ''; $('escort-phone').value = '';
+    }
+  });
+
+  function switchMode(next) {
+    mode = next;
+    loadedTripId = null;
+    clearMessage();
+    $('trip-form').reset();
+    $('trip-form').classList.add('hidden');
+    $('trip-id-display').classList.add('hidden');
+    $('cancel-trip-btn').classList.add('hidden');
+    $('riders-fields').classList.add('hidden');
+    $('escort-fields').classList.add('hidden');
+    if (mode === 'create') {
+      $('lookup-fieldset').classList.add('hidden');
+      $('form-legend').textContent = 'New Trip';
+      $('trip-form').classList.remove('hidden');
+    } else {
+      $('lookup-fieldset').classList.remove('hidden');
+    }
+  }
+
+  // ---- Lookup existing trip ----
+  $('lookup-submit').addEventListener('click', () => {
+    const tripId = $('lookup-trip-id').value.trim();
+    if (!tripId) return;
+    loadTrip(tripId);
+  });
+
+  function loadTrip(tripId) {
+    showMessage('info', 'Loading trip ' + tripId + '...');
+    const url = cfg.lookupWebhookUrl + '?tripId=' + encodeURIComponent(tripId);
+    fetch(url, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+      .then((res) => {
+        if (res.status === 404) throw new Error('Trip ' + tripId + ' not found.');
+        if (!res.ok) throw new Error('Lookup failed (' + res.status + ').');
+        return res.json();
+      })
+      .then((trip) => {
+        loadedTripId = trip.tripId;
+        $('trip-date').value = trip.tripDate || '';
+        $('pickup-time').value = trip.pickupTime || '';
+        $('pickup-location').value = trip.pickupLocation || '';
+        $('dropoff-location').value = trip.dropoffLocation || '';
+        const durMin = trip.durationMin || 0;
+        $('duration-hours').value = Math.floor(durMin / 60) || '';
+        $('duration-minutes').value = durMin % 60 || '';
+        $('rider1-name').value = trip.riderName1 || '';
+        $('rider1-phone').value = trip.riderPhone1 || '';
+        $('rider2-name').value = trip.riderName2 || '';
+        $('rider2-phone').value = trip.riderPhone2 || '';
+        const hasRiders = !!(trip.riderName1 || trip.riderPhone1 || trip.riderName2 || trip.riderPhone2);
+        $('riders-toggle').checked = hasRiders;
+        $('riders-fields').classList.toggle('hidden', !hasRiders);
+        $('escort-name').value = trip.escortName || '';
+        $('escort-phone').value = trip.escortPhone || '';
+        const hasEscort = !!(trip.escortName || trip.escortPhone);
+        $('escort-toggle').checked = hasEscort;
+        $('escort-fields').classList.toggle('hidden', !hasEscort);
+        $('trip-id-value').textContent = trip.tripId;
+        $('trip-status-value').textContent = trip.status;
+        $('trip-id-display').classList.remove('hidden');
+        $('form-legend').textContent = 'Edit Trip';
+        $('cancel-trip-btn').classList.toggle('hidden', trip.status === 'Cancelled');
+        $('trip-form').classList.remove('hidden');
+        clearMessage();
+      })
+      .catch((err) => showMessage('error', err.message));
+  }
+
+  // ---- Save (create or update) ----
+  $('trip-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const durationMin = (Number($('duration-hours').value) || 0) * 60 + (Number($('duration-minutes').value) || 0);
+    if (durationMin <= 0) {
+      showMessage('error', 'Enter a trip duration greater than 0.');
+      return;
+    }
+    const payload = {
+      action: mode === 'edit' && loadedTripId ? 'update' : 'create',
+      tripDate: $('trip-date').value,
+      pickupTime: $('pickup-time').value,
+      pickupLocation: $('pickup-location').value.trim(),
+      dropoffLocation: $('dropoff-location').value.trim(),
+      durationMin: durationMin,
+      riderName1: $('rider1-name').value.trim(),
+      riderPhone1: $('rider1-phone').value.trim(),
+      riderName2: $('rider2-name').value.trim(),
+      riderPhone2: $('rider2-phone').value.trim(),
+      escortName: $('escort-name').value.trim(),
+      escortPhone: $('escort-phone').value.trim()
+    };
+    if (payload.action === 'update') payload.tripId = loadedTripId;
+
+    setSaving(true);
+    showMessage('info', 'Saving...');
+    fetch(cfg.intakeWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dispatch-Secret': cfg.sharedSecret
+      },
+      body: JSON.stringify(payload)
+    })
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (!ok) throw new Error(body.message || 'Save failed.');
+        showMessage('success', body.message || ('Trip ' + body.tripId + ' saved.'));
+      })
+      .catch((err) => showMessage('error', err.message))
+      .finally(() => setSaving(false));
+  });
+
+  // ---- Cancel trip ----
+  $('cancel-trip-btn').addEventListener('click', () => {
+    if (!loadedTripId) return;
+    if (!confirm('Cancel trip ' + loadedTripId + '? This cannot be undone from this form.')) return;
+    showMessage('info', 'Cancelling...');
+    fetch(cfg.intakeWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dispatch-Secret': cfg.sharedSecret
+      },
+      body: JSON.stringify({ action: 'cancel', tripId: loadedTripId })
+    })
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (!ok) throw new Error(body.message || 'Cancel failed.');
+        showMessage('success', body.message || ('Trip ' + loadedTripId + ' cancelled.'));
+      })
+      .catch((err) => showMessage('error', err.message));
+  });
+
+  // ---- Helpers ----
+  function setSaving(saving) {
+    $('save-btn').disabled = saving;
+  }
+  function showMessage(type, text) {
+    const el = $('message');
+    el.className = type;
+    el.textContent = text;
+  }
+  function clearMessage() {
+    const el = $('message');
+    el.className = '';
+    el.textContent = '';
+  }
+})();
+</script>
+</body>
+</html>
