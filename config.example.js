@@ -8,14 +8,18 @@ window.APP_CONFIG = {
   // n8n webhook that accepts GET ?tripId=T-0001 and returns the trip's current fields
   lookupWebhookUrl: 'https://your-n8n-instance/webhook/trip-lookup',
 
-  // n8n webhook that accepts GET (no params) and returns active drivers as
-  // [{ driverId, name }] — names only, never phone numbers — for respond.html's
-  // calendar-origin driver picker
+  // n8n webhooks that accept GET (no params) and return the active roster as
+  // [{ driverId|riderId|escortId, name }] — names only, never phone numbers —
+  // for respond.html's picker fallback (used when a link has no
+  // driverId/riderId/escortId, e.g. ?respondAs=rider)
   driversWebhookUrl: 'https://your-n8n-instance/webhook/drivers',
+  ridersWebhookUrl: 'https://your-n8n-instance/webhook/riders',
+  escortsWebhookUrl: 'https://your-n8n-instance/webhook/vehicle-escorts',
 
   // n8n webhook that accepts POST { tripId, action: 'accept'|'decline', ... }
-  // from respond.html (either { driverId } for personalized links, or
-  // { driverName, last4 } for calendar-origin links)
+  // from respond.html: { driverId }/{ riderId }/{ escortId } for personalized
+  // links, or { driverName, last4 }/{ riderName, last4 }/{ escortName, last4 }
+  // for picker-fallback links
   respondWebhookUrl: 'https://your-n8n-instance/webhook/respond',
 
   // Sent as the X-Dispatch-Secret header on every request. intake.html also

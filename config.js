@@ -5,9 +5,11 @@ window.APP_CONFIG = {
   // n8n webhook that accepts GET ?tripId=T-0001 and returns the trip's current fields
   lookupWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/trip-lookup',
 
-  // n8n webhook that accepts GET (no params) and returns active drivers as
-  // [{ driverId, name }] for respond.html's calendar-origin driver picker
+  // n8n webhooks that accept GET (no params) and return the active roster as
+  // [{ driverId|riderId|escortId, name }] for respond.html's picker fallback
   driversWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/drivers',
+  ridersWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/riders',
+  escortsWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/vehicle-escorts',
 
   // n8n webhook that accepts POST { tripId, action, ... } from respond.html
   respondWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/respond',

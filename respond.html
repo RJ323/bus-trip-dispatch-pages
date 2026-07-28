@@ -78,17 +78,22 @@
   block. Enforced server-side (driver identity match); this flag only
   controls the UI gate.
 
-  GET  {driversWebhookUrl}                         (calendar-origin flow only)
+  GET  {driversWebhookUrl} / {ridersWebhookUrl} / {escortsWebhookUrl}
+       (picker fallback only, used when tripId is present but no
+       driverId/riderId/escortId — e.g. ?tripId=...&respondAs=rider)
        Header: X-Dispatch-Secret: <sharedSecret>
-       200 -> [ { driverId, name }, ... ]  (active drivers only, no phone
-              numbers sent to the client — last-4 is checked server-side)
+       200 -> [ { driverId|riderId|escortId, name }, ... ]  (active roster
+              only, no phone numbers sent to the client — last-4 is
+              checked server-side)
 
   POST {respondWebhookUrl}
        Header: X-Dispatch-Secret: <sharedSecret>
-       Body (personalized link):    { tripId, driverId, action: 'accept'|'decline' }
-       Body (calendar-origin link): { tripId, driverName, last4, action: 'accept'|'decline' }
-       Body (rider link):           { tripId, riderId, action: 'accept'|'decline' }
-       Body (escort link):          { tripId, escortId, action: 'accept'|'decline' }
+       Body (personalized driver link): { tripId, driverId, action: 'accept'|'decline' }
+       Body (driver picker):            { tripId, driverName, last4, action: 'accept'|'decline' }
+       Body (personalized rider link):  { tripId, riderId, action: 'accept'|'decline' }
+       Body (rider picker):             { tripId, riderName, last4, action: 'accept'|'decline' }
+       Body (personalized escort link): { tripId, escortId, action: 'accept'|'decline' }
+       Body (escort picker):            { tripId, escortName, last4, action: 'accept'|'decline' }
        200 -> { tripId, status, message }
        400 -> { message } (validation, last-4 mismatch — kept generic, doesn't
               reveal whether the name or the digits were wrong)
@@ -98,11 +103,15 @@
   Riders and the vehicle escort work like drivers, not a typed-in name:
   they're a registered roster (Riders / Vehicle Escorts tabs), broadcast to
   on trip creation, first to accept locks a slot — same trust model as a
-  driver's personalized link (no last-4 check), same "already taken"/"full"
-  semantics on a 409. A rider link (?tripId=...&riderId=...) is a single
-  link per person, not per-slot — accepting tries Rider Slot 1 first, falls
-  back to Slot 2 if Slot 1 is already filled, and 409s only if both are
-  filled. An escort link (?tripId=...&escortId=...) has just the one slot.
+  driver's personalized link (no last-4 check) or picker (name + last-4,
+  verified server-side), same "already taken"/"full" semantics on a 409.
+  A rider link/picker choice is a single identity, not per-slot — accepting
+  tries Rider Slot 1 first, falls back to Slot 2 if Slot 1 is already
+  filled, and 409s only if both are filled. Escort has just the one slot.
+
+  ?respondAs=rider|escort on a link with no riderId/escortId/driverId shows
+  the picker fallback for that roster (there's no calendar-event equivalent
+  for riders/escort to click into, so this is the manual fallback path).
 -->
 
 <header class="site-header">
@@ -153,8 +162,10 @@
   const driverId = params.get('driverId'); // present only on personalized links
   const riderId = params.get('riderId'); // present only on rider roster links
   const escortId = params.get('escortId'); // present only on vehicle escort roster links
+  const respondAs = params.get('respondAs'); // 'rider' | 'escort' — picker fallback when no riderId/escortId/driverId
   let tripStatus = null;
-  let selectedDriverName = null;
+  let selectedRole = null; // 'driver' | 'rider' | 'escort', set once a picker name is chosen
+  let selectedName = null;
 
   if (!cfg || !cfg.sharedSecret) {
     showMessage('error', 'config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.');
@@ -217,6 +228,26 @@
           return;
         }
 
+        if (respondAs === 'rider') {
+          const rider1Open = trip.riderStatus1 === 'Open';
+          const rider2Open = trip.riderStatus2 === 'Open';
+          if (!rider1Open && !rider2Open) {
+            showMessage('info', 'Sorry, this trip\'s rider slots are already full.');
+            return;
+          }
+          loadRoster('rider');
+          return;
+        }
+
+        if (respondAs === 'escort') {
+          if (trip.escortStatus === 'Filled') {
+            showMessage('info', 'Sorry, this trip\'s vehicle escort slot has already been filled.');
+            return;
+          }
+          loadRoster('escort');
+          return;
+        }
+
         if (trip.status === 'Filled') {
           if (driverId && trip.pendingReconfirmation) {
             showMessage('info', 'This trip\'s details changed since you accepted — please reconfirm or decline.');
@@ -232,27 +263,34 @@
           $('action-fieldset').classList.remove('hidden');
         } else {
           // Calendar-origin link: pick name, then confirm last 4 of phone.
-          loadDrivers();
+          loadRoster('driver');
         }
       })
       .catch((err) => showMessage('error', err.message));
   }
 
-  // ---- Calendar-origin: driver picker ----
-  function loadDrivers() {
-    fetch(cfg.driversWebhookUrl, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+  // ---- Picker fallback: pick a name from the roster, then confirm last 4 ----
+  const ROSTER_CONFIG = {
+    driver: { url: () => cfg.driversWebhookUrl, label: 'driver' },
+    rider: { url: () => cfg.ridersWebhookUrl, label: 'rider' },
+    escort: { url: () => cfg.escortsWebhookUrl, label: 'vehicle escort' }
+  };
+
+  function loadRoster(role) {
+    const roster = ROSTER_CONFIG[role];
+    fetch(roster.url(), { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
       .then((res) => {
-        if (!res.ok) throw new Error('Could not load driver roster (' + res.status + ').');
+        if (!res.ok) throw new Error('Could not load ' + roster.label + ' roster (' + res.status + ').');
         return res.json();
       })
-      .then((drivers) => {
+      .then((people) => {
         const list = $('driver-list');
         list.innerHTML = '';
-        drivers.forEach((d) => {
+        people.forEach((p) => {
           const btn = document.createElement('button');
           btn.className = 'secondary';
-          btn.textContent = d.name;
-          btn.addEventListener('click', () => selectDriver(d.name));
+          btn.textContent = p.name;
+          btn.addEventListener('click', () => selectPerson(role, p.name));
           list.appendChild(btn);
         });
         $('picker-fieldset').classList.remove('hidden');
@@ -260,8 +298,9 @@
       .catch((err) => showMessage('error', err.message));
   }
 
-  function selectDriver(name) {
-    selectedDriverName = name;
+  function selectPerson(role, name) {
+    selectedRole = role;
+    selectedName = name;
     $('confirm-driver-name').textContent = name;
     $('picker-fieldset').classList.add('hidden');
     $('confirm-fieldset').classList.remove('hidden');
@@ -269,7 +308,7 @@
   }
 
   $('confirm-change-name').addEventListener('click', () => {
-    selectedDriverName = null;
+    selectedName = null;
     $('last4-input').value = '';
     $('confirm-fieldset').classList.add('hidden');
     $('action-fieldset').classList.add('hidden');
@@ -290,7 +329,7 @@
       payload.driverId = driverId;
     } else {
       const last4 = $('last4-input').value.trim();
-      if (!selectedDriverName) {
+      if (!selectedName) {
         showMessage('error', 'Select your name first.');
         return;
       }
@@ -298,7 +337,9 @@
         showMessage('error', 'Enter the last 4 digits of your phone number.');
         return;
       }
-      payload.driverName = selectedDriverName;
+      if (selectedRole === 'rider') payload.riderName = selectedName;
+      else if (selectedRole === 'escort') payload.escortName = selectedName;
+      else payload.driverName = selectedName;
       payload.last4 = last4;
     }
 
