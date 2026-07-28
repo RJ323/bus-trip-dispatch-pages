@@ -6,55 +6,151 @@
 <title>Trip Intake — Dispatch</title>
 <script src="config.js"></script>
 <style>
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --ink: #0f1f3d;
+    --ink-2: #16294d;
+    --blue: #2563eb;
+    --amber: #f59e0b;
+    --paper: #f7f7f5;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #ffffff;
+    --card-border: #e2e2df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b1220;
+      --card: #12203a;
+      --card-border: #24334f;
+      --slate: #b8c4d6;
+      --slate-light: #7488a6;
+    }
+  }
+  * { box-sizing: border-box; }
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
     margin: 0;
-    line-height: 1.4;
-    background: #f5f5f5;
+    line-height: 1.45;
+    background: var(--paper);
+    color: #1a1a1a;
   }
   @media (prefers-color-scheme: dark) {
-    body { background: #18181b; }
+    body { color: #e7ebf3; }
   }
-  .site-header { padding: 1rem 1rem 0.5rem; }
-  .site-header img {
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  }
+
+  .console-header {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+  }
+  .console-header img {
     display: block;
-    width: 100%;
     max-width: 480px;
+    width: 100%;
     height: auto;
+  }
+  .console-eyebrow {
+    max-width: 480px;
     margin: 0 auto;
+    padding: 0.9rem 1rem 0 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate-light);
   }
-  .page-content { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
-  fieldset { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin: 0 0 1rem; background: #ffffffaa; }
-  @media (prefers-color-scheme: dark) {
-    fieldset { background: #ffffff08; }
+
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+  #message {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    display: none;
+    font-size: 0.92rem;
   }
-  legend { padding: 0 0.4rem; font-weight: 600; }
-  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 500; }
+  #message.info { display: block; background: #2563eb14; border-color: var(--blue); }
+  #message.error { display: block; background: #dc262614; border-color: #dc2626; }
+  #message.success { display: block; background: #16a34a14; border-color: #16a34a; }
+
+  fieldset {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1rem;
+    background: var(--card);
+  }
+  legend {
+    padding: 0 0.4rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+  }
+  label { display: block; margin: 0.75rem 0 0.3rem; font-weight: 600; font-size: 0.85rem; color: var(--slate); }
   input, select {
-    width: 100%; box-sizing: border-box; padding: 0.5rem; font-size: 1rem;
-    border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit;
+    width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; font-size: 1rem;
+    border: 1px solid var(--card-border); border-radius: 6px; background: transparent; color: inherit;
   }
   input[type="checkbox"] {
     width: auto; padding: 0; border: none; background: none; margin-right: 0.4rem; vertical-align: middle;
   }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
   button {
-    font-size: 1rem; padding: 0.6rem 1rem; border-radius: 6px; border: none;
-    cursor: pointer; margin-top: 0.75rem;
+    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px; border: none;
+    cursor: pointer; margin-top: 0.75rem; letter-spacing: 0.01em;
   }
-  .primary { background: #2563eb; color: #fff; }
-  .danger { background: #dc2626; color: #fff; }
-  .secondary { background: #8884; color: inherit; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .primary { background: var(--blue); color: #fff; }
+  .danger { background: transparent; color: #dc2626; border: 1.5px solid #dc2626; }
+  .secondary { background: transparent; color: inherit; border: 1.5px solid var(--card-border); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
   .row > button, .row > div { flex: 1; }
-  #message { margin: 1rem 0; padding: 0.75rem; border-radius: 6px; display: none; }
-  #message.info { display: block; background: #2563eb22; }
-  #message.error { display: block; background: #dc262622; }
-  #message.success { display: block; background: #16a34a22; }
   .hidden { display: none !important; }
-  .status-badge { font-weight: 600; }
-  small { opacity: 0.7; }
+  small { opacity: 0.75; }
+
+  .stamp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 2px solid var(--amber);
+    color: var(--amber);
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+  }
+  .stamp-badge.status-open { border-color: var(--amber); color: var(--amber); }
+  .stamp-badge.status-filled { border-color: #16a34a; color: #16a34a; }
+  .stamp-badge.status-cancelled { border-color: #b91c1c; color: #b91c1c; }
+
+  .gate-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    fieldset { animation: rise 0.25s ease-out; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 </head>
 <body>
@@ -91,15 +187,18 @@
   (broadcasting), or 'Filled'.
 -->
 
-<header class="site-header">
+<header class="console-header">
   <img src="banner.png" alt="Trip Dispatch">
 </header>
+<div class="console-eyebrow">Trip Intake — Department Staff</div>
 
 <div id="gate" class="page-content">
-  <p>Enter passphrase to continue.</p>
-  <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
-  <button class="primary" id="gate-submit">Enter</button>
-  <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem;">Incorrect passphrase.</div>
+  <div class="gate-card">
+    <p style="margin-top:0;">Enter passphrase to continue.</p>
+    <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
+    <button class="primary" id="gate-submit" style="width:100%;">Enter</button>
+    <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem; font-size:0.85rem;">Incorrect passphrase.</div>
+  </div>
 </div>
 
 <div id="app" class="page-content hidden">
@@ -113,7 +212,7 @@
   <fieldset id="lookup-fieldset" class="hidden">
     <legend>Find Trip</legend>
     <label for="lookup-trip-id">Trip ID</label>
-    <input type="text" id="lookup-trip-id" placeholder="T-0001">
+    <input type="text" id="lookup-trip-id" placeholder="T-0001" class="mono">
     <button class="primary" id="lookup-submit">Load Trip</button>
   </fieldset>
 
@@ -121,8 +220,9 @@
     <fieldset>
       <legend id="form-legend">New Trip</legend>
 
-      <div id="trip-id-display" class="hidden">
-        <small>Trip ID: <span id="trip-id-value"></span> — Status: <span id="trip-status-value" class="status-badge"></span></small>
+      <div id="trip-id-display" class="hidden" style="margin-bottom:0.5rem;">
+        <span class="mono" id="trip-id-value" style="font-weight:700;"></span>
+        <span id="trip-status-value" class="stamp-badge"></span>
       </div>
 
       <label for="trip-date">Trip Date</label>
@@ -261,7 +361,9 @@
         $('escort-toggle').checked = !!trip.escortStatus;
         $('escort-status-display').textContent = describeSlot('Escort', trip.escortStatus, trip.escortName);
         $('trip-id-value').textContent = trip.tripId;
-        $('trip-status-value').textContent = trip.status;
+        const statusEl = $('trip-status-value');
+        statusEl.textContent = trip.status;
+        statusEl.className = 'stamp-badge status-' + String(trip.status).toLowerCase();
         $('trip-id-display').classList.remove('hidden');
         $('form-legend').textContent = 'Edit Trip';
         $('cancel-trip-btn').classList.toggle('hidden', trip.status === 'Cancelled');

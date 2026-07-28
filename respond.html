@@ -6,55 +6,196 @@
 <title>Trip Response — Dispatch</title>
 <script src="config.js"></script>
 <style>
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --ink: #0f1f3d;
+    --ink-2: #16294d;
+    --blue: #2563eb;
+    --amber: #f59e0b;
+    --paper: #f7f7f5;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #ffffff;
+    --card-border: #e2e2df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b1220;
+      --card: #12203a;
+      --card-border: #24334f;
+      --slate: #b8c4d6;
+      --slate-light: #7488a6;
+    }
+  }
+  * { box-sizing: border-box; }
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
     margin: 0;
-    line-height: 1.4;
-    background: #f5f5f5;
+    line-height: 1.45;
+    background: var(--paper);
+    color: #1a1a1a;
   }
   @media (prefers-color-scheme: dark) {
-    body { background: #18181b; }
+    body { color: #e7ebf3; }
   }
-  .site-header { padding: 1rem 1rem 0.5rem; }
-  .site-header img {
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  }
+  a { color: var(--blue); }
+
+  .console-header {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+  }
+  .console-header img {
     display: block;
-    width: 100%;
     max-width: 480px;
+    width: 100%;
     height: auto;
+  }
+  .console-eyebrow {
+    max-width: 480px;
     margin: 0 auto;
+    padding: 0.9rem 1rem 0 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate-light);
   }
-  .page-content { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
-  fieldset { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin: 0 0 1rem; background: #ffffffaa; }
-  @media (prefers-color-scheme: dark) {
-    fieldset { background: #ffffff08; }
+
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+  #message {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    display: none;
+    font-size: 0.92rem;
   }
-  legend { padding: 0 0.4rem; font-weight: 600; }
-  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 500; }
-  input, select {
-    width: 100%; box-sizing: border-box; padding: 0.5rem; font-size: 1rem;
-    border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit;
+  #message.info { display: block; background: #2563eb14; border-color: var(--blue); }
+  #message.error { display: block; background: #dc262614; border-color: #dc2626; }
+  #message.success { display: block; background: #16a34a14; border-color: #16a34a; }
+
+  .ticket {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+    margin-bottom: 1.25rem;
+    overflow: hidden;
   }
+  .ticket-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.1rem;
+    background: var(--ink);
+    color: #fff;
+  }
+  .ticket-top .trip-id {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+  }
+  .ticket-top .trip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--slate-light);
+  }
+  .ticket-perforation {
+    height: 1px;
+    background-image: repeating-linear-gradient(90deg, var(--card-border) 0 8px, transparent 8px 16px);
+  }
+  .ticket-body { padding: 1.1rem; }
+  .detail-row {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--card-border);
+    align-items: baseline;
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label {
+    flex: 0 0 5.5rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .detail-value { flex: 1; font-size: 0.98rem; }
+  .detail-value a { text-decoration-thickness: 1px; }
+
+  .stamp {
+    position: absolute;
+    top: 1.4rem;
+    right: 1.3rem;
+    border: 3px solid currentColor;
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transform: rotate(-9deg);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+  .stamp.cancelled { color: #b91c1c; }
+  .stamp.taken { color: var(--slate); }
+  .stamp.pending { color: var(--amber); }
+
+  fieldset {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1rem;
+    background: var(--card);
+  }
+  legend {
+    padding: 0 0.4rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+  }
+  label { display: block; margin: 0.75rem 0 0.3rem; font-weight: 600; font-size: 0.85rem; color: var(--slate); }
+  input {
+    width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; font-size: 1rem;
+    border: 1px solid var(--card-border); border-radius: 6px; background: transparent; color: inherit;
+  }
+  input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
   button {
-    font-size: 1rem; padding: 0.6rem 1rem; border-radius: 6px; border: none;
-    cursor: pointer; margin-top: 0.75rem;
+    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px; border: none;
+    cursor: pointer; margin-top: 0.75rem; letter-spacing: 0.01em;
   }
-  .primary { background: #2563eb; color: #fff; }
-  .danger { background: #dc2626; color: #fff; }
-  .secondary { background: #8884; color: inherit; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .primary { background: var(--blue); color: #fff; }
+  .danger { background: transparent; color: #dc2626; border: 1.5px solid #dc2626; }
+  .secondary { background: transparent; color: inherit; border: 1.5px solid var(--card-border); text-align: left; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .row > button { flex: 1; }
-  #message { margin: 1rem 0; padding: 0.75rem; border-radius: 6px; display: none; }
-  #message.info { display: block; background: #2563eb22; }
-  #message.error { display: block; background: #dc262622; }
-  #message.success { display: block; background: #16a34a22; }
   .hidden { display: none !important; }
-  .trip-detail { margin: 0.15rem 0; }
-  .trip-detail b { display: inline-block; min-width: 6.5rem; }
   .driver-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
-  .driver-list button { margin-top: 0; text-align: left; }
-  small { opacity: 0.7; }
+  .driver-list button { margin-top: 0; }
+  small { opacity: 0.75; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ticket { animation: rise 0.3s ease-out; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 </head>
 <body>
@@ -114,20 +255,40 @@
   for riders/escort to click into, so this is the manual fallback path).
 -->
 
-<header class="site-header">
+<header class="console-header">
   <img src="banner.png" alt="Trip Dispatch">
 </header>
+<div class="console-eyebrow" id="console-eyebrow">Trip Response</div>
 
 <div id="app" class="page-content">
   <div id="message"></div>
 
-  <fieldset id="trip-fieldset" class="hidden">
-    <legend>Trip <span id="trip-id-value"></span></legend>
-    <div class="trip-detail"><b>Date:</b> <span id="trip-date-value"></span></div>
-    <div class="trip-detail"><b>Pickup:</b> <span id="pickup-time-value"></span> — <a id="pickup-location-value" target="_blank" rel="noopener"></a></div>
-    <div class="trip-detail"><b>Dropoff:</b> <a id="dropoff-location-value" target="_blank" rel="noopener"></a></div>
-    <div class="trip-detail"><b>Duration:</b> <span id="duration-value"></span></div>
-  </fieldset>
+  <div id="trip-fieldset" class="ticket hidden">
+    <div id="status-stamp"></div>
+    <div class="ticket-top">
+      <span class="trip-id mono">Trip <span id="trip-id-value"></span></span>
+      <span class="trip-label">Dispatch Ticket</span>
+    </div>
+    <div class="ticket-perforation"></div>
+    <div class="ticket-body">
+      <div class="detail-row">
+        <span class="detail-label">Date</span>
+        <span class="detail-value mono" id="trip-date-value"></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Pickup</span>
+        <span class="detail-value"><span class="mono" id="pickup-time-value"></span> — <a id="pickup-location-value" target="_blank" rel="noopener"></a></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Dropoff</span>
+        <span class="detail-value"><a id="dropoff-location-value" target="_blank" rel="noopener"></a></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Duration</span>
+        <span class="detail-value mono" id="duration-value"></span>
+      </div>
+    </div>
+  </div>
 
   <fieldset id="picker-fieldset" class="hidden">
     <legend>Who are you?</legend>
@@ -137,7 +298,7 @@
 
   <fieldset id="confirm-fieldset" class="hidden">
     <legend>Confirm it's you</legend>
-    <p>Selected: <b id="confirm-driver-name"></b> <button class="secondary" id="confirm-change-name" style="margin-top:0; padding:0.2rem 0.5rem;">change</button></p>
+    <p>Selected: <b id="confirm-driver-name"></b> <button class="secondary" id="confirm-change-name" style="margin-top:0; padding:0.3rem 0.6rem; font-weight:600;">change</button></p>
     <label for="last4-input">Last 4 digits of your phone number</label>
     <input type="tel" id="last4-input" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234">
   </fieldset>
@@ -166,6 +327,11 @@
   let tripStatus = null;
   let selectedRole = null; // 'driver' | 'rider' | 'escort', set once a picker name is chosen
   let selectedName = null;
+
+  $('console-eyebrow').textContent =
+    riderId || respondAs === 'rider' ? 'Rider Response' :
+    escortId || respondAs === 'escort' ? 'Vehicle Escort Response' :
+    'Driver Response';
 
   if (!cfg || !cfg.sharedSecret) {
     showMessage('error', 'config.js is missing or incomplete. Copy config.example.js to config.js and fill in real values.');
@@ -201,6 +367,7 @@
         clearMessage();
 
         if (trip.status === 'Cancelled') {
+          setStamp('cancelled', 'Cancelled');
           showMessage('info', 'This trip has been cancelled — no response needed.');
           return;
         }
@@ -213,6 +380,7 @@
           const rider2Open = trip.riderStatus2 === 'Open';
           const ridersEverNeeded = !!(trip.riderStatus1 || trip.riderStatus2);
           if (!rider1Open && !rider2Open) {
+            if (ridersEverNeeded) setStamp('taken', 'Full');
             showMessage('info', ridersEverNeeded
               ? 'Sorry, this trip\'s rider slots are already full.'
               : 'This trip does not need riders.');
@@ -224,6 +392,7 @@
 
         if (escortId) {
           if (trip.escortStatus !== 'Open') {
+            if (trip.escortStatus === 'Filled') setStamp('taken', 'Filled');
             showMessage('info', trip.escortStatus === 'Filled'
               ? 'Sorry, this trip\'s vehicle escort slot has already been filled.'
               : 'This trip does not need a vehicle escort.');
@@ -238,6 +407,7 @@
           const rider2Open = trip.riderStatus2 === 'Open';
           const ridersEverNeeded = !!(trip.riderStatus1 || trip.riderStatus2);
           if (!rider1Open && !rider2Open) {
+            if (ridersEverNeeded) setStamp('taken', 'Full');
             showMessage('info', ridersEverNeeded
               ? 'Sorry, this trip\'s rider slots are already full.'
               : 'This trip does not need riders.');
@@ -249,6 +419,7 @@
 
         if (respondAs === 'escort') {
           if (trip.escortStatus !== 'Open') {
+            if (trip.escortStatus === 'Filled') setStamp('taken', 'Filled');
             showMessage('info', trip.escortStatus === 'Filled'
               ? 'Sorry, this trip\'s vehicle escort slot has already been filled.'
               : 'This trip does not need a vehicle escort.');
@@ -260,10 +431,12 @@
 
         if (trip.status === 'Filled') {
           if (driverId && trip.pendingReconfirmation) {
+            setStamp('pending', 'Reconfirm');
             showMessage('info', 'This trip\'s details changed since you accepted — please reconfirm or decline.');
             $('action-fieldset').classList.remove('hidden');
             return;
           }
+          setStamp('taken', 'Filled');
           showMessage('info', 'Sorry, this trip has already been taken by another driver.');
           return;
         }
@@ -277,6 +450,12 @@
         }
       })
       .catch((err) => showMessage('error', err.message));
+  }
+
+  function setStamp(kind, text) {
+    const el = $('status-stamp');
+    el.className = 'stamp ' + kind;
+    el.textContent = text;
   }
 
   // ---- Picker fallback: pick a name from the roster, then confirm last 4 ----
