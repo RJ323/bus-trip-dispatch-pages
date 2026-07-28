@@ -211,8 +211,11 @@
           // (the link was texted privately to this person's own phone).
           const rider1Open = trip.riderStatus1 === 'Open';
           const rider2Open = trip.riderStatus2 === 'Open';
+          const ridersEverNeeded = !!(trip.riderStatus1 || trip.riderStatus2);
           if (!rider1Open && !rider2Open) {
-            showMessage('info', 'Sorry, this trip\'s rider slots are already full.');
+            showMessage('info', ridersEverNeeded
+              ? 'Sorry, this trip\'s rider slots are already full.'
+              : 'This trip does not need riders.');
             return;
           }
           $('action-fieldset').classList.remove('hidden');
@@ -220,8 +223,10 @@
         }
 
         if (escortId) {
-          if (trip.escortStatus === 'Filled') {
-            showMessage('info', 'Sorry, this trip\'s vehicle escort slot has already been filled.');
+          if (trip.escortStatus !== 'Open') {
+            showMessage('info', trip.escortStatus === 'Filled'
+              ? 'Sorry, this trip\'s vehicle escort slot has already been filled.'
+              : 'This trip does not need a vehicle escort.');
             return;
           }
           $('action-fieldset').classList.remove('hidden');
@@ -231,8 +236,11 @@
         if (respondAs === 'rider') {
           const rider1Open = trip.riderStatus1 === 'Open';
           const rider2Open = trip.riderStatus2 === 'Open';
+          const ridersEverNeeded = !!(trip.riderStatus1 || trip.riderStatus2);
           if (!rider1Open && !rider2Open) {
-            showMessage('info', 'Sorry, this trip\'s rider slots are already full.');
+            showMessage('info', ridersEverNeeded
+              ? 'Sorry, this trip\'s rider slots are already full.'
+              : 'This trip does not need riders.');
             return;
           }
           loadRoster('rider');
@@ -240,8 +248,10 @@
         }
 
         if (respondAs === 'escort') {
-          if (trip.escortStatus === 'Filled') {
-            showMessage('info', 'Sorry, this trip\'s vehicle escort slot has already been filled.');
+          if (trip.escortStatus !== 'Open') {
+            showMessage('info', trip.escortStatus === 'Filled'
+              ? 'Sorry, this trip\'s vehicle escort slot has already been filled.'
+              : 'This trip does not need a vehicle escort.');
             return;
           }
           loadRoster('escort');
