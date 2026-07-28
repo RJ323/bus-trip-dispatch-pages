@@ -167,6 +167,13 @@
                 escortName, escortPhone, escortStatus }
        404 -> trip not found
 
+  GET  {tripsListWebhookUrl}   (no params)
+       Header: X-Dispatch-Secret: <sharedSecret>
+       200 -> [ { tripId, tripDate, pickupTime, pickupLocation, status }, ... ]
+              Upcoming (tripDate >= today), non-cancelled trips only, sorted
+              by date then pickup time. Powers the "Load Existing Trip"
+              picker below instead of requiring staff to know the trip ID.
+
   POST {intakeWebhookUrl}
        Header: X-Dispatch-Secret: <sharedSecret>
        Body (create): { action: 'create', tripDate, pickupTime,
@@ -211,8 +218,8 @@
 
   <fieldset id="lookup-fieldset" class="hidden">
     <legend>Find Trip</legend>
-    <label for="lookup-trip-id">Trip ID</label>
-    <input type="text" id="lookup-trip-id" placeholder="T-0001" class="mono">
+    <label for="lookup-trip-id">Trip</label>
+    <select id="lookup-trip-id" class="mono"></select>
     <button class="primary" id="lookup-submit">Load Trip</button>
   </fieldset>
 
@@ -298,7 +305,6 @@
     const tripId = params.get('tripId');
     if (tripId) {
       switchMode('edit');
-      $('lookup-trip-id').value = tripId;
       loadTrip(tripId);
     }
   }
@@ -326,10 +332,42 @@
       $('trip-form').classList.remove('hidden');
     } else {
       $('lookup-fieldset').classList.remove('hidden');
+      loadTripsList();
     }
   }
 
   // ---- Lookup existing trip ----
+  function loadTripsList() {
+    const select = $('lookup-trip-id');
+    select.innerHTML = '<option value="">Loading trips…</option>';
+    select.disabled = true;
+    fetch(cfg.tripsListWebhookUrl, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Could not load trip list (' + res.status + ').');
+        return res.json();
+      })
+      .then((trips) => {
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = trips.length ? 'Select a trip…' : 'No upcoming trips';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        select.appendChild(placeholder);
+        trips.forEach((trip) => {
+          const opt = document.createElement('option');
+          opt.value = trip.tripId;
+          opt.textContent = trip.tripId + ' — ' + trip.tripDate + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + trip.status + ')';
+          select.appendChild(opt);
+        });
+        select.disabled = false;
+      })
+      .catch((err) => {
+        select.innerHTML = '<option value="">Could not load trips</option>';
+        showMessage('error', err.message);
+      });
+  }
+
   $('lookup-submit').addEventListener('click', () => {
     const tripId = $('lookup-trip-id').value.trim();
     if (!tripId) return;

@@ -8,6 +8,11 @@ window.APP_CONFIG = {
   // n8n webhook that accepts GET ?tripId=T-0001 and returns the trip's current fields
   lookupWebhookUrl: 'https://your-n8n-instance/webhook/trip-lookup',
 
+  // n8n webhook that accepts GET (no params) and returns upcoming, non-cancelled
+  // trips as [{ tripId, tripDate, pickupTime, pickupLocation, status }], sorted
+  // by date/time — powers intake.html's "Load Existing Trip" picker
+  tripsListWebhookUrl: 'https://your-n8n-instance/webhook/trips-list',
+
   // n8n webhooks that accept GET (no params) and return the active roster as
   // [{ driverId|riderId|escortId, name }] — names only, never phone numbers —
   // for respond.html's picker fallback (used when a link has no
