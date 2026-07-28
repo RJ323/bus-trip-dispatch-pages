@@ -66,25 +66,29 @@
   GET  {lookupWebhookUrl}?tripId=T-0001
        Header: X-Dispatch-Secret: <sharedSecret>
        200 -> { tripId, tripDate, pickupTime, pickupLocation, dropoffLocation,
-                durationMin, status, riderName1, riderPhone1, riderName2, riderPhone2,
-                escortName, escortPhone }
+                durationMin, status, riderName1, riderPhone1, riderStatus1,
+                riderName2, riderPhone2, riderStatus2,
+                escortName, escortPhone, escortStatus }
        404 -> trip not found
 
   POST {intakeWebhookUrl}
        Header: X-Dispatch-Secret: <sharedSecret>
        Body (create): { action: 'create', tripDate, pickupTime,
                          pickupLocation, dropoffLocation, durationMin,
-                         riderName1?, riderPhone1?, riderName2?, riderPhone2?,
-                         escortName?, escortPhone? }
+                         ridersNeeded?, escortNeeded? }
        Body (update): body above + { action: 'update', tripId }
        Body (cancel): { action: 'cancel', tripId }
        200 -> { tripId, status, message }
        4xx -> { message } (e.g. already Filled, validation failure)
 
-  Riders (max 2) and the vehicle escort are optional, recorded for reference
-  only (no notification tied to driver acceptance) — a separate scheduled
-  day-before reminder text goes out to driver/riders/escort, handled
-  entirely in n8n.
+  Riders (up to 2 slots) and the vehicle escort work like drivers, not like
+  a typed-in name: staff just flags a slot as needed (ridersNeeded/
+  escortNeeded booleans — no name/phone entered here), n8n broadcasts to the
+  Riders/Vehicle Escorts roster the same way it broadcasts to Drivers, and
+  the first roster member to accept locks that slot (riderName1/2,
+  escortName etc. are then system-filled from whoever accepted).
+  riderStatus1/2 and escortStatus are blank (not needed), 'Open'
+  (broadcasting), or 'Filled'.
 -->
 
 <header class="site-header">
@@ -145,37 +149,17 @@
     </fieldset>
 
     <fieldset>
-      <legend>Riders (optional, max 2)</legend>
+      <legend>Riders (optional, up to 2)</legend>
 
-      <label><input type="checkbox" id="riders-toggle"> Add rider(s)</label>
-
-      <div id="riders-fields" class="hidden">
-        <label for="rider1-name">Rider 1 Name</label>
-        <input type="text" id="rider1-name">
-
-        <label for="rider1-phone">Rider 1 Phone</label>
-        <input type="tel" id="rider1-phone">
-
-        <label for="rider2-name">Rider 2 Name</label>
-        <input type="text" id="rider2-name">
-
-        <label for="rider2-phone">Rider 2 Phone</label>
-        <input type="tel" id="rider2-phone">
-      </div>
+      <label><input type="checkbox" id="riders-toggle"> Riders needed</label>
+      <small id="riders-status-display"></small>
     </fieldset>
 
     <fieldset>
       <legend>Vehicle Escort (optional)</legend>
 
       <label><input type="checkbox" id="escort-toggle"> Vehicle escort needed</label>
-
-      <div id="escort-fields" class="hidden">
-        <label for="escort-name">Escort Name</label>
-        <input type="text" id="escort-name">
-
-        <label for="escort-phone">Escort Phone</label>
-        <input type="tel" id="escort-phone">
-      </div>
+      <small id="escort-status-display"></small>
     </fieldset>
 
     <div class="row">
@@ -226,23 +210,6 @@
   $('mode-create').addEventListener('click', () => switchMode('create'));
   $('mode-edit').addEventListener('click', () => switchMode('edit'));
 
-  // ---- Riders / Vehicle Escort toggles ----
-  $('riders-toggle').addEventListener('change', () => {
-    const on = $('riders-toggle').checked;
-    $('riders-fields').classList.toggle('hidden', !on);
-    if (!on) {
-      $('rider1-name').value = ''; $('rider1-phone').value = '';
-      $('rider2-name').value = ''; $('rider2-phone').value = '';
-    }
-  });
-  $('escort-toggle').addEventListener('change', () => {
-    const on = $('escort-toggle').checked;
-    $('escort-fields').classList.toggle('hidden', !on);
-    if (!on) {
-      $('escort-name').value = ''; $('escort-phone').value = '';
-    }
-  });
-
   function switchMode(next) {
     mode = next;
     loadedTripId = null;
@@ -251,8 +218,8 @@
     $('trip-form').classList.add('hidden');
     $('trip-id-display').classList.add('hidden');
     $('cancel-trip-btn').classList.add('hidden');
-    $('riders-fields').classList.add('hidden');
-    $('escort-fields').classList.add('hidden');
+    $('riders-status-display').textContent = '';
+    $('escort-status-display').textContent = '';
     if (mode === 'create') {
       $('lookup-fieldset').classList.add('hidden');
       $('form-legend').textContent = 'New Trip';
@@ -287,18 +254,12 @@
         const durMin = trip.durationMin || 0;
         $('duration-hours').value = Math.floor(durMin / 60) || '';
         $('duration-minutes').value = durMin % 60 || '';
-        $('rider1-name').value = trip.riderName1 || '';
-        $('rider1-phone').value = trip.riderPhone1 || '';
-        $('rider2-name').value = trip.riderName2 || '';
-        $('rider2-phone').value = trip.riderPhone2 || '';
-        const hasRiders = !!(trip.riderName1 || trip.riderPhone1 || trip.riderName2 || trip.riderPhone2);
-        $('riders-toggle').checked = hasRiders;
-        $('riders-fields').classList.toggle('hidden', !hasRiders);
-        $('escort-name').value = trip.escortName || '';
-        $('escort-phone').value = trip.escortPhone || '';
-        const hasEscort = !!(trip.escortName || trip.escortPhone);
-        $('escort-toggle').checked = hasEscort;
-        $('escort-fields').classList.toggle('hidden', !hasEscort);
+        $('riders-toggle').checked = !!(trip.riderStatus1 || trip.riderStatus2);
+        $('riders-status-display').textContent =
+          describeSlot('Rider 1', trip.riderStatus1, trip.riderName1) +
+          describeSlot('Rider 2', trip.riderStatus2, trip.riderName2);
+        $('escort-toggle').checked = !!trip.escortStatus;
+        $('escort-status-display').textContent = describeSlot('Escort', trip.escortStatus, trip.escortName);
         $('trip-id-value').textContent = trip.tripId;
         $('trip-status-value').textContent = trip.status;
         $('trip-id-display').classList.remove('hidden');
@@ -325,12 +286,8 @@
       pickupLocation: $('pickup-location').value.trim(),
       dropoffLocation: $('dropoff-location').value.trim(),
       durationMin: durationMin,
-      riderName1: $('rider1-name').value.trim(),
-      riderPhone1: $('rider1-phone').value.trim(),
-      riderName2: $('rider2-name').value.trim(),
-      riderPhone2: $('rider2-phone').value.trim(),
-      escortName: $('escort-name').value.trim(),
-      escortPhone: $('escort-phone').value.trim()
+      ridersNeeded: $('riders-toggle').checked,
+      escortNeeded: $('escort-toggle').checked
     };
     if (payload.action === 'update') payload.tripId = loadedTripId;
 
@@ -375,6 +332,11 @@
   });
 
   // ---- Helpers ----
+  function describeSlot(label, status, name) {
+    if (!status) return '';
+    if (status === 'Filled') return label + ': Filled (' + (name || 'unknown') + ')  ';
+    return label + ': Open — awaiting response  ';
+  }
   function setSaving(saving) {
     $('save-btn').disabled = saving;
   }
