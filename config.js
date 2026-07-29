@@ -19,6 +19,26 @@ window.APP_CONFIG = {
   // n8n webhook that accepts POST { tripId, action, ... } from respond.html
   respondWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/respond',
 
+  // Supabase project URL (bare, no /rest/v1/ suffix — supabase-js adds that).
+  supabaseUrl: 'https://tdjhliwrqrztdumslvgr.supabase.co',
+
+  // Supabase anon/public API key — protected by RLS, see supabase-setup.sql.
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkamhsaXdycXJ6dGR1bXNsdmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNjc3NjIsImV4cCI6MjEwMDg0Mzc2Mn0.hd1VzYJdOK1XYjK2cj_PFmGwILk1vQwfPT8k19Fiaac',
+
+  // n8n webhook that accepts POST { id, name, role, contact, email } from
+  // auth.html after every successful login/signup. Upserts the person into
+  // the matching Drivers/Riders/Vehicle Escorts roster tab (matched by
+  // email, so repeat logins don't create duplicate rows) — the same roster
+  // tabs Trip Intake already broadcasts to.
+  authHandoffWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/auth-handoff',
+
+  // n8n webhook that accepts GET ?rosterId=D-0001|R-0001|E-0001 and returns
+  // this person's upcoming trips: [{ tripId, tripDate, pickupTime,
+  // pickupLocation, dropoffLocation, durationMin, myStatus }], where
+  // myStatus is 'available' (open, not yet responded) or 'assigned' (they
+  // already accepted). Powers the "Your Trips" list in auth.html.
+  myTripsWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/my-trips',
+
   // Sent as the X-Dispatch-Secret header on every request. intake.html also
   // uses this for its passphrase gate; respond.html no longer has a gate
   // (drivers already prove identity via the personalized link / last-4

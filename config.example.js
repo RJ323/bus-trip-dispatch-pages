@@ -27,6 +27,31 @@ window.APP_CONFIG = {
   // for picker-fallback links
   respondWebhookUrl: 'https://your-n8n-instance/webhook/respond',
 
+  // Supabase project URL — the bare project URL, NOT the /rest/v1/ REST
+  // endpoint (supabase-js appends that itself). Find it in Supabase:
+  // Project Settings > API > Project URL.
+  supabaseUrl: 'https://your-project-ref.supabase.co',
+
+  // Supabase anon/public API key (Project Settings > API > anon public).
+  // Safe to ship to the browser — it's only as strong as the table's Row
+  // Level Security policies (see supabase-setup.sql at the project root).
+  supabaseAnonKey: 'replace-with-supabase-anon-key',
+
+  // n8n webhook that accepts POST { id, name, role, contact, email } right
+  // after a successful login/signup in auth.html. Upserts the person into
+  // the matching Drivers/Riders/Vehicle Escorts roster tab (matched by
+  // email, so repeat logins don't create duplicate rows) — the same
+  // roster tabs Trip Intake already broadcasts to. auth.html silently
+  // skips the call while this URL still contains "your-n8n-instance".
+  authHandoffWebhookUrl: 'https://your-n8n-instance/webhook/auth-handoff',
+
+  // n8n webhook that accepts GET ?rosterId=D-0001|R-0001|E-0001 and returns
+  // this person's upcoming trips: [{ tripId, tripDate, pickupTime,
+  // pickupLocation, dropoffLocation, durationMin, myStatus }], where
+  // myStatus is 'available' (open, not yet responded) or 'assigned' (they
+  // already accepted). Powers the "Your Trips" list in auth.html.
+  myTripsWebhookUrl: 'https://your-n8n-instance/webhook/my-trips',
+
   // Sent as the X-Dispatch-Secret header on every request. intake.html also
   // uses this for its passphrase gate; respond.html no longer has a gate
   // (drivers already prove identity via the personalized link / last-4

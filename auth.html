@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account Access</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #0f1f3d;
+    --ink-2: #16294d;
+    --blue: #2563eb;
+    --amber: #f59e0b;
+    --paper: #f7f7f5;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #ffffff;
+    --card-border: #e2e2df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b1220;
+      --card: #12203a;
+      --card-border: #24334f;
+      --slate: #b8c4d6;
+      --slate-light: #7488a6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    line-height: 1.45;
+    background: var(--paper);
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7ebf3; }
+  }
+  a { color: var(--blue); }
+
+  .console-header {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+  }
+  .console-header img {
+    display: block;
+    max-width: 480px;
+    width: 100%;
+    height: auto;
+  }
+  .console-eyebrow {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0.9rem 1rem 0 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate-light);
+  }
+
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+  #message {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    display: none;
+    font-size: 0.92rem;
+  }
+  #message.info { display: block; background: #2563eb14; border-color: var(--blue); }
+  #message.error { display: block; background: #dc262614; border-color: #dc2626; }
+  #message.success { display: block; background: #16a34a14; border-color: #16a34a; }
+
+  fieldset {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1rem;
+    background: var(--card);
+  }
+  legend {
+    padding: 0 0.4rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+  }
+  label { display: block; margin: 0.75rem 0 0.3rem; font-weight: 600; font-size: 0.85rem; color: var(--slate); }
+  input, select {
+    width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; font-size: 1rem;
+    border: 1px solid var(--card-border); border-radius: 6px; background: transparent; color: inherit;
+  }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  button {
+    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px; border: none;
+    cursor: pointer; margin-top: 0.75rem; letter-spacing: 0.01em;
+  }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .primary { background: var(--blue); color: #fff; }
+  .danger { background: transparent; color: #dc2626; border: 1.5px solid #dc2626; }
+  .secondary { background: transparent; color: inherit; border: 1.5px solid var(--card-border); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .row > button, .row > div { flex: 1; }
+  .hidden { display: none !important; }
+  small { opacity: 0.75; }
+
+  .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .role-badge.role-driver { background: #2563eb14; color: var(--blue); }
+  .role-badge.role-rider  { background: #f59e0b14; color: var(--amber); }
+  .role-badge.role-escort { background: #16a34a14; color: #16a34a; }
+
+  .account-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .account-card .name { font-size: 1.15rem; font-weight: 700; margin: 0.25rem 0 0.6rem; }
+
+  .my-trips-heading {
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    margin: 0 0 0.4rem;
+  }
+  .trip-item {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    margin-top: 0.65rem;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+  .trip-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+  .trip-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 0.2rem 0.55rem;
+    font-weight: 800;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .trip-badge.available { background: #f59e0b14; color: var(--amber); }
+  .trip-badge.assigned { background: #16a34a14; color: #16a34a; }
+  .trip-item .row { margin-bottom: 0; margin-top: 0.6rem; }
+  .trip-item button { margin-top: 0; padding: 0.55rem 0.8rem; font-size: 0.85rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    fieldset, .account-card { animation: rise 0.25s ease-out; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header class="console-header">
+  <img src="banner.png" alt="Trip Dispatch">
+</header>
+<div class="console-eyebrow">Account Access</div>
+
+<div id="config-error" class="page-content hidden">
+  <div class="account-card">
+    <p style="margin-top:0; color:#dc2626;">config.js is missing Supabase settings. Copy config.example.js to config.js and fill in supabaseUrl / supabaseAnonKey.</p>
+  </div>
+</div>
+
+<div id="app" class="page-content hidden">
+  <div id="message"></div>
+
+  <div id="auth-forms">
+    <div class="row">
+      <button class="secondary mode-btn" id="mode-login">Sign In</button>
+      <button class="secondary mode-btn" id="mode-signup">Create Account</button>
+    </div>
+
+    <form id="login-form">
+      <fieldset>
+        <legend>Sign In</legend>
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="email" required>
+
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+
+        <button type="submit" class="primary" id="login-btn" style="width:100%;">Sign In</button>
+        <p style="text-align:center; margin-bottom:0;"><a href="#" id="forgot-password-link" style="font-size:0.85rem;">Forgot password?</a></p>
+      </fieldset>
+    </form>
+
+    <form id="forgot-password-form" class="hidden">
+      <fieldset>
+        <legend>Reset Password</legend>
+        <label for="forgot-email">Email</label>
+        <input type="email" id="forgot-email" autocomplete="email" required>
+
+        <button type="submit" class="primary" id="forgot-btn" style="width:100%;">Send Reset Link</button>
+        <p style="text-align:center; margin-bottom:0;"><a href="#" id="back-to-login-link" style="font-size:0.85rem;">Back to Sign In</a></p>
+      </fieldset>
+    </form>
+
+    <form id="reset-password-form" class="hidden">
+      <fieldset>
+        <legend>Set New Password</legend>
+        <label for="reset-password">New Password</label>
+        <input type="password" id="reset-password" autocomplete="new-password" minlength="6" required>
+
+        <label for="reset-password-confirm">Confirm New Password</label>
+        <input type="password" id="reset-password-confirm" autocomplete="new-password" minlength="6" required>
+
+        <button type="submit" class="primary" id="reset-password-btn" style="width:100%;">Set Password</button>
+      </fieldset>
+    </form>
+
+    <form id="signup-form" class="hidden">
+      <fieldset>
+        <legend>Create Account</legend>
+        <label for="signup-first-name">First Name</label>
+        <input type="text" id="signup-first-name" autocomplete="given-name" required>
+
+        <label for="signup-last-name">Last Name</label>
+        <input type="text" id="signup-last-name" autocomplete="family-name" required>
+
+        <label for="signup-contact">Phone / Contact</label>
+        <input type="tel" id="signup-contact" autocomplete="tel" required>
+
+        <label for="signup-role">Role</label>
+        <select id="signup-role" required>
+          <option value="" disabled selected>Select a role…</option>
+          <option value="driver">Driver</option>
+          <option value="rider">Rider</option>
+          <option value="escort">Vehicle Escort</option>
+        </select>
+
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" autocomplete="email" required>
+
+        <label for="signup-email-confirm">Confirm Email</label>
+        <input type="email" id="signup-email-confirm" autocomplete="email" required>
+
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" autocomplete="new-password" minlength="6" required>
+
+        <label for="signup-password-confirm">Confirm Password</label>
+        <input type="password" id="signup-password-confirm" autocomplete="new-password" minlength="6" required>
+
+        <button type="submit" class="primary" id="signup-btn" style="width:100%;">Create Account</button>
+      </fieldset>
+    </form>
+  </div>
+
+  <div id="account-card" class="account-card hidden">
+    <p style="margin-top:0;">Signed in as</p>
+    <p class="name" id="account-name"></p>
+    <span class="role-badge" id="account-role"></span>
+
+    <div id="my-trips-section" style="margin-top:1.25rem;">
+      <p class="my-trips-heading">Your Trips</p>
+      <div id="my-trips"></div>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <button class="secondary" id="signout-btn" style="width:100%;">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const cfg = window.APP_CONFIG;
+  const $ = (id) => document.getElementById(id);
+
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+    $('config-error').classList.remove('hidden');
+    return;
+  }
+
+  $('app').classList.remove('hidden');
+  const sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+  // ---- Mode toggle ----
+  function switchMode(next) {
+    clearMessage();
+    $('login-form').classList.toggle('hidden', next !== 'login');
+    $('signup-form').classList.toggle('hidden', next !== 'signup');
+    $('forgot-password-form').classList.toggle('hidden', next !== 'forgot');
+    $('reset-password-form').classList.toggle('hidden', next !== 'reset');
+    $('mode-login').classList.toggle('active', next === 'login');
+    $('mode-signup').classList.toggle('active', next === 'signup');
+  }
+  $('mode-login').addEventListener('click', () => switchMode('login'));
+  $('mode-signup').addEventListener('click', () => switchMode('signup'));
+  switchMode('login');
+
+  // ---- Forgot / reset password ----
+  $('forgot-password-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    switchMode('forgot');
+  });
+  $('back-to-login-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    switchMode('login');
+  });
+
+  $('forgot-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('forgot-email').value.trim();
+    setBusy('forgot-btn', true, 'Sending...');
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    setBusy('forgot-btn', false, 'Send Reset Link');
+    if (error) {
+      showMessage('error', error.message);
+      return;
+    }
+    switchMode('login');
+    showMessage('success', 'If that email has an account, a reset link has been sent.');
+  });
+
+  $('reset-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = $('reset-password').value;
+    const passwordConfirm = $('reset-password-confirm').value;
+    if (password !== passwordConfirm) {
+      showMessage('error', 'New Password and Confirm New Password do not match.');
+      return;
+    }
+    setBusy('reset-password-btn', true, 'Saving...');
+    const { data, error } = await sb.auth.updateUser({ password });
+    setBusy('reset-password-btn', false, 'Set Password');
+    if (error) {
+      showMessage('error', error.message);
+      return;
+    }
+    showMessage('success', 'Password updated.');
+    enterAccount(data.user);
+  });
+
+  // A password-recovery link lands here with "#...&type=recovery" in the
+  // URL. Checking this directly (rather than relying solely on Supabase's
+  // PASSWORD_RECOVERY auth event, which doesn't fire reliably in every
+  // supabase-js version/scenario — e.g. when a session is already cached
+  // in this browser from earlier testing) guarantees the reset form shows
+  // up instead of racing the normal "resume session" logic into the
+  // signed-in view.
+  const recoveryHashParams = new URLSearchParams(
+    window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash
+  );
+  let isPasswordRecovery = recoveryHashParams.get('type') === 'recovery';
+  if (isPasswordRecovery) {
+    switchMode('reset');
+  }
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      isPasswordRecovery = true;
+      switchMode('reset');
+    }
+  });
+
+  // ---- Capitalize first letter of name fields as the user leaves them ----
+  ['signup-first-name', 'signup-last-name'].forEach((id) => {
+    $(id).addEventListener('blur', () => {
+      $(id).value = capitalizeFirst($(id).value.trim());
+    });
+  });
+  function capitalizeFirst(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+  }
+
+  // ---- Sign up ----
+  $('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const firstName = capitalizeFirst($('signup-first-name').value.trim());
+    const lastName = capitalizeFirst($('signup-last-name').value.trim());
+    const name = (firstName + ' ' + lastName).trim();
+    const contact = $('signup-contact').value.trim();
+    const role = $('signup-role').value;
+    const email = $('signup-email').value.trim();
+    const emailConfirm = $('signup-email-confirm').value.trim();
+    const password = $('signup-password').value;
+    const passwordConfirm = $('signup-password-confirm').value;
+
+    if (email.toLowerCase() !== emailConfirm.toLowerCase()) {
+      showMessage('error', 'Email and Confirm Email do not match.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      showMessage('error', 'Password and Confirm Password do not match.');
+      return;
+    }
+
+    setBusy('signup-btn', true, 'Creating account...');
+    showMessage('info', 'Creating account...');
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, contact, role },
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    setBusy('signup-btn', false, 'Create Account');
+
+    if (error) {
+      showMessage('error', error.message);
+      return;
+    }
+    if (!data.session) {
+      switchMode('login');
+      showMessage('success', 'Account created! Check your email to confirm, then sign in.');
+      $('login-email').value = email;
+      return;
+    }
+    // Confirm-email is off in this project, so signUp already returned a
+    // live session — go straight to the signed-in view.
+    await enterAccount(data.user);
+  });
+
+  // ---- Sign in ----
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('login-email').value.trim();
+    const password = $('login-password').value;
+
+    setBusy('login-btn', true, 'Signing in...');
+    showMessage('info', 'Signing in...');
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    setBusy('login-btn', false, 'Sign In');
+
+    if (error) {
+      showMessage('error', error.message);
+      return;
+    }
+    await enterAccount(data.user);
+  });
+
+  // ---- Sign out ----
+  $('signout-btn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    $('account-card').classList.add('hidden');
+    $('auth-forms').classList.remove('hidden');
+    $('login-form').reset();
+    $('signup-form').reset();
+    switchMode('login');
+  });
+
+  // ---- Shared: load profile, show account card, fire n8n handoff, load trips ----
+  let currentProfile = null;
+
+  async function enterAccount(user) {
+    showMessage('info', 'Loading profile...');
+    const { data: profile, error } = await sb
+      .from('profiles')
+      .select('name, contact, role, unique_code')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      showMessage('error', 'Signed in, but could not load profile: ' + error.message);
+      return;
+    }
+
+    currentProfile = profile;
+    clearMessage();
+    $('auth-forms').classList.add('hidden');
+    $('account-card').classList.remove('hidden');
+    $('account-name').textContent = profile.name;
+    $('account-role').textContent = profile.role;
+    $('account-role').className = 'role-badge role-' + profile.role;
+
+    let rosterId = profile.unique_code;
+    const handoffResult = await sendHandoff({ id: user.id, name: profile.name, role: profile.role, contact: profile.contact, email: user.email });
+    if (handoffResult && handoffResult.rosterId && handoffResult.rosterId !== rosterId) {
+      rosterId = handoffResult.rosterId;
+      await sb.from('profiles').update({ unique_code: rosterId }).eq('id', user.id);
+    }
+
+    if (rosterId) {
+      loadMyTrips(rosterId);
+    } else {
+      $('my-trips').innerHTML = '<p><small>No roster ID on file yet.</small></p>';
+    }
+  }
+
+  async function sendHandoff(payload) {
+    if (!cfg.authHandoffWebhookUrl || cfg.authHandoffWebhookUrl.indexOf('your-n8n-instance') !== -1) {
+      return null; // not built yet — placeholder left in config
+    }
+    try {
+      const res = await fetch(cfg.authHandoffWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dispatch-Secret': cfg.sharedSecret
+        },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('Auth handoff failed:', err);
+      return null;
+    }
+  }
+
+  // ---- Your Trips ----
+  async function loadMyTrips(rosterId) {
+    const container = $('my-trips');
+    container.innerHTML = '<p><small>Loading your trips...</small></p>';
+    if (!cfg.myTripsWebhookUrl || cfg.myTripsWebhookUrl.indexOf('your-n8n-instance') !== -1) {
+      container.innerHTML = '<p><small>Trip list not configured yet.</small></p>';
+      return;
+    }
+    try {
+      const res = await fetch(cfg.myTripsWebhookUrl + '?rosterId=' + encodeURIComponent(rosterId), {
+        headers: { 'X-Dispatch-Secret': cfg.sharedSecret }
+      });
+      if (!res.ok) throw new Error('Could not load trips (' + res.status + ').');
+      const trips = await res.json();
+      renderMyTrips(trips, rosterId);
+    } catch (err) {
+      container.innerHTML = '<p><small>Could not load your trips: ' + escapeHtml(err.message) + '</small></p>';
+    }
+  }
+
+  function renderMyTrips(trips, rosterId) {
+    const container = $('my-trips');
+    if (!trips.length) {
+      container.innerHTML = '<p><small>No trips right now.</small></p>';
+      return;
+    }
+    container.innerHTML = trips.map((t) => {
+      const durH = Math.floor((t.durationMin || 0) / 60);
+      const durM = (t.durationMin || 0) % 60;
+      const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
+      const badge = t.myStatus === 'assigned'
+        ? '<span class="trip-badge assigned">Assigned</span>'
+        : '<span class="trip-badge available">Available</span>';
+      const actions = t.myStatus === 'available'
+        ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Accept</button>'
+          + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Decline</button></div>'
+        : '';
+      return '<div class="trip-item">'
+        + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
+        + '<div>' + escapeHtml(t.tripDate) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
+        + '<div>' + escapeHtml(t.pickupLocation) + ' &rarr; ' + escapeHtml(t.dropoffLocation) + '</div>'
+        + actions
+        + '</div>';
+    }).join('');
+
+    container.querySelectorAll('.trip-accept-btn').forEach((btn) => {
+      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'accept', rosterId));
+    });
+    container.querySelectorAll('.trip-decline-btn').forEach((btn) => {
+      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'decline', rosterId));
+    });
+  }
+
+  async function handleRespond(tripId, action, rosterId) {
+    showMessage('info', (action === 'accept' ? 'Accepting' : 'Declining') + ' trip ' + tripId + '...');
+    const payload = { tripId, action };
+    if (currentProfile.role === 'driver') payload.driverId = rosterId;
+    else if (currentProfile.role === 'rider') payload.riderId = rosterId;
+    else if (currentProfile.role === 'escort') payload.escortId = rosterId;
+
+    try {
+      const res = await fetch(cfg.respondWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dispatch-Secret': cfg.sharedSecret
+        },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || 'Request failed.');
+      showMessage('success', body.message || 'Response recorded.');
+      loadMyTrips(rosterId);
+    } catch (err) {
+      showMessage('error', err.message);
+    }
+  }
+
+  // ---- Resume existing session on load ----
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session && !isPasswordRecovery) enterAccount(data.session.user);
+  });
+
+  // ---- Helpers ----
+  function setBusy(btnId, busy, label) {
+    const btn = $(btnId);
+    btn.disabled = busy;
+    btn.textContent = label;
+  }
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+  }
+  function showMessage(type, text) {
+    const el = $('message');
+    el.className = type;
+    el.textContent = text;
+  }
+  function clearMessage() {
+    const el = $('message');
+    el.className = '';
+    el.textContent = '';
+  }
+})();
+</script>
+</body>
+</html>

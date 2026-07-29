@@ -135,6 +135,8 @@
   .stamp-badge.status-filled { border-color: #16a34a; color: #16a34a; }
   .stamp-badge.status-cancelled { border-color: #b91c1c; color: #b91c1c; }
 
+  .filled-name { color: #16a34a; font-weight: 800; }
+
   .gate-card {
     background: var(--card);
     border: 1px solid var(--card-border);
@@ -178,18 +180,22 @@
        Header: X-Dispatch-Secret: <sharedSecret>
        Body (create): { action: 'create', tripDate, pickupTime,
                          pickupLocation, dropoffLocation, durationMin,
-                         ridersNeeded?, escortNeeded? }
+                         rider1Needed?, rider2Needed?, escortNeeded? }
        Body (update): body above + { action: 'update', tripId }
        Body (cancel): { action: 'cancel', tripId }
        200 -> { tripId, status, message }
        4xx -> { message } (e.g. already Filled, validation failure)
 
-  Riders (up to 2 slots) and the vehicle escort work like drivers, not like
-  a typed-in name: staff just flags a slot as needed (ridersNeeded/
-  escortNeeded booleans — no name/phone entered here), n8n broadcasts to the
-  Riders/Vehicle Escorts roster the same way it broadcasts to Drivers, and
-  the first roster member to accept locks that slot (riderName1/2,
-  escortName etc. are then system-filled from whoever accepted).
+  Riders (up to 2 independent slots) and the vehicle escort work like
+  drivers, not like a typed-in name: staff just flags each slot as needed
+  (rider1Needed/rider2Needed/escortNeeded booleans — no name/phone entered
+  here; rider2Needed is only meaningful when rider1Needed is also true —
+  most trips need just one rider, so leaving the 2nd rider box unchecked
+  keeps that slot blank/not-needed instead of sitting "Open" forever with
+  no one ever expected to fill it), n8n broadcasts to the Riders/Vehicle
+  Escorts roster the same way it broadcasts to Drivers, and the first
+  roster member to accept locks that slot (riderName1/2, escortName etc.
+  are then system-filled from whoever accepted).
   riderStatus1/2 and escortStatus are blank (not needed), 'Open'
   (broadcasting), or 'Filled'.
 -->
@@ -230,6 +236,7 @@
       <div id="trip-id-display" class="hidden" style="margin-bottom:0.5rem;">
         <span class="mono" id="trip-id-value" style="font-weight:700;"></span>
         <span id="trip-status-value" class="stamp-badge"></span>
+        <div><small id="driver-status-display"></small></div>
       </div>
 
       <label for="trip-date">Trip Date</label>
@@ -258,7 +265,8 @@
     <fieldset>
       <legend>Riders (optional, up to 2)</legend>
 
-      <label><input type="checkbox" id="riders-toggle"> Riders needed</label>
+      <label><input type="checkbox" id="rider1-toggle"> Rider needed</label>
+      <label><input type="checkbox" id="rider2-toggle" disabled> 2nd rider needed</label>
       <small id="riders-status-display"></small>
     </fieldset>
 
@@ -316,6 +324,12 @@
   $('mode-create').addEventListener('click', () => switchMode('create'));
   $('mode-edit').addEventListener('click', () => switchMode('edit'));
 
+  $('rider1-toggle').addEventListener('change', () => {
+    const needed = $('rider1-toggle').checked;
+    $('rider2-toggle').disabled = !needed;
+    if (!needed) $('rider2-toggle').checked = false;
+  });
+
   function switchMode(next) {
     mode = next;
     loadedTripId = null;
@@ -324,8 +338,10 @@
     $('trip-form').classList.add('hidden');
     $('trip-id-display').classList.add('hidden');
     $('cancel-trip-btn').classList.add('hidden');
-    $('riders-status-display').textContent = '';
-    $('escort-status-display').textContent = '';
+    $('riders-status-display').innerHTML = '';
+    $('escort-status-display').innerHTML = '';
+    $('driver-status-display').innerHTML = '';
+    $('rider2-toggle').disabled = true;
     if (mode === 'create') {
       $('lookup-fieldset').classList.add('hidden');
       $('form-legend').textContent = 'New Trip';
@@ -357,7 +373,7 @@
         trips.forEach((trip) => {
           const opt = document.createElement('option');
           opt.value = trip.tripId;
-          opt.textContent = trip.tripId + ' — ' + trip.tripDate + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + trip.status + ')';
+          opt.textContent = trip.tripId + ' — ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + trip.status + ')';
           select.appendChild(opt);
         });
         select.disabled = false;
@@ -392,16 +408,21 @@
         const durMin = trip.durationMin || 0;
         $('duration-hours').value = Math.floor(durMin / 60) || '';
         $('duration-minutes').value = durMin % 60 || '';
-        $('riders-toggle').checked = !!(trip.riderStatus1 || trip.riderStatus2);
-        $('riders-status-display').textContent =
+        $('rider1-toggle').checked = !!trip.riderStatus1;
+        $('rider2-toggle').disabled = !trip.riderStatus1;
+        $('rider2-toggle').checked = !!trip.riderStatus2;
+        $('riders-status-display').innerHTML =
           describeSlot('Rider 1', trip.riderStatus1, trip.riderName1) +
           describeSlot('Rider 2', trip.riderStatus2, trip.riderName2);
         $('escort-toggle').checked = !!trip.escortStatus;
-        $('escort-status-display').textContent = describeSlot('Escort', trip.escortStatus, trip.escortName);
+        $('escort-status-display').innerHTML = describeSlot('Escort', trip.escortStatus, trip.escortName);
         $('trip-id-value').textContent = trip.tripId;
         const statusEl = $('trip-status-value');
         statusEl.textContent = trip.status;
         statusEl.className = 'stamp-badge status-' + String(trip.status).toLowerCase();
+        $('driver-status-display').innerHTML = trip.status === 'Filled' && trip.driverName
+          ? 'Driver: <span class="filled-name">' + escapeHtml(trip.driverName) + '</span>'
+          : '';
         $('trip-id-display').classList.remove('hidden');
         $('form-legend').textContent = 'Edit Trip';
         $('cancel-trip-btn').classList.toggle('hidden', trip.status === 'Cancelled');
@@ -426,7 +447,8 @@
       pickupLocation: $('pickup-location').value.trim(),
       dropoffLocation: $('dropoff-location').value.trim(),
       durationMin: durationMin,
-      ridersNeeded: $('riders-toggle').checked,
+      rider1Needed: $('rider1-toggle').checked,
+      rider2Needed: $('rider1-toggle').checked && $('rider2-toggle').checked,
       escortNeeded: $('escort-toggle').checked
     };
     if (payload.action === 'update') payload.tripId = loadedTripId;
@@ -474,8 +496,17 @@
   // ---- Helpers ----
   function describeSlot(label, status, name) {
     if (!status) return '';
-    if (status === 'Filled') return label + ': Filled (' + (name || 'unknown') + ')  ';
+    if (status === 'Filled') return label + ': <span class="filled-name">' + escapeHtml(name || 'unknown') + '</span>  ';
     return label + ': Open — awaiting response  ';
+  }
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  function formatDateMMDDYYYY(isoDate) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+    return m ? m[2] + '-' + m[3] + '-' + m[1] : (isoDate || '');
   }
   function setSaving(saving) {
     $('save-btn').disabled = saving;
