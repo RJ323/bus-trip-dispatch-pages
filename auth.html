@@ -206,7 +206,7 @@
       <button class="secondary mode-btn" id="mode-signup">Create Account</button>
     </div>
 
-    <form id="login-form">
+    <form id="login-form" class="hidden">
       <fieldset>
         <legend>Sign In</legend>
         <label for="login-email">Email</label>
@@ -343,7 +343,9 @@
   }
   $('mode-login').addEventListener('click', () => switchMode('login'));
   $('mode-signup').addEventListener('click', () => switchMode('signup'));
-  switchMode('login');
+  // Start with just the two buttons showing — neither form expands until
+  // one is clicked, for a cleaner initial card instead of dropping straight
+  // into the Sign In fields.
 
   // ---- Forgot / reset password ----
   $('forgot-password-link').addEventListener('click', (e) => {
