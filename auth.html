@@ -147,14 +147,42 @@
     letter-spacing: 0.02em;
     margin: 0 0 0.4rem;
   }
+  .trip-group-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 800;
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin: 1rem 0 0.4rem;
+  }
+  .trip-group-heading:first-child { margin-top: 0; }
+  .trip-group-heading.assigned { color: #16a34a; }
+  .trip-group-heading.available { color: var(--amber); }
+  .trip-group-heading .count {
+    font-weight: 700;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--slate-light);
+  }
+  .trip-group-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+  }
   .trip-item {
     border: 1px solid var(--card-border);
+    border-left: 3px solid var(--card-border);
     border-radius: 8px;
     padding: 0.75rem 0.9rem;
     margin-top: 0.65rem;
     text-align: left;
     font-size: 0.9rem;
   }
+  .trip-item.assigned { border-left-color: #16a34a; }
+  .trip-item.available { border-left-color: var(--amber); }
   .trip-item-top {
     display: flex;
     justify-content: space-between;
@@ -595,7 +623,8 @@
         : '<p><small>No trips right now.</small></p>';
       return;
     }
-    container.innerHTML = trips.map((t) => {
+
+    function renderTrip(t) {
       const durH = Math.floor((t.durationMin || 0) / 60);
       const durM = (t.durationMin || 0) % 60;
       const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
@@ -606,13 +635,33 @@
         ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Accept</button>'
           + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Decline</button></div>'
         : '';
-      return '<div class="trip-item">'
+      return '<div class="trip-item ' + t.myStatus + '">'
         + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
         + '<div>' + escapeHtml(t.tripDate) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
         + '<div>' + escapeHtml(t.pickupLocation) + ' &rarr; ' + escapeHtml(t.dropoffLocation) + '</div>'
         + actions
         + '</div>';
-    }).join('');
+    }
+
+    if (focused) {
+      container.innerHTML = trips.map(renderTrip).join('');
+    } else {
+      // Assigned trips surface before available ones, each under its own
+      // labeled group, so a driver/rider/escort can't mistake a slot they
+      // still need to accept for one they're already committed to.
+      const assigned = trips.filter((t) => t.myStatus === 'assigned');
+      const available = trips.filter((t) => t.myStatus !== 'assigned');
+      let html = '';
+      if (assigned.length) {
+        html += '<div class="trip-group-heading assigned">Assigned <span class="count">(' + assigned.length + ')</span></div>';
+        html += assigned.map(renderTrip).join('');
+      }
+      if (available.length) {
+        html += '<div class="trip-group-heading available">Available <span class="count">(' + available.length + ')</span></div>';
+        html += available.map(renderTrip).join('');
+      }
+      container.innerHTML = html;
+    }
 
     container.querySelectorAll('.trip-accept-btn').forEach((btn) => {
       btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'accept', rosterId));
