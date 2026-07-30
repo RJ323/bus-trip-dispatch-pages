@@ -341,7 +341,10 @@
   }
   $('mode-login').addEventListener('click', () => switchMode('login'));
   $('mode-signup').addEventListener('click', () => switchMode('signup'));
-  switchMode('login');
+  // Arriving via a trip link (calendar/SMS), most people won't have an
+  // account yet — default to Create Account instead of Sign In. Anyone who
+  // already has one just clicks the Sign In tab.
+  switchMode(focusTripId ? 'signup' : 'login');
 
   // ---- Forgot / reset password ----
   $('forgot-password-link').addEventListener('click', (e) => {
