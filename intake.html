@@ -59,11 +59,10 @@
     margin: 0 auto;
     padding: 0.9rem 1rem 0 1rem;
     text-align: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--slate-light);
   }
 
   .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
@@ -205,7 +204,7 @@
 <header class="console-header">
   <img src="banner.png" alt="Trip Dispatch">
 </header>
-<div class="console-eyebrow">Trip Intake — Department Staff</div>
+<div class="console-eyebrow">Bus Trip Intake Form</div>
 
 <div id="gate" class="page-content">
   <div class="gate-card">
@@ -248,14 +247,8 @@
 
       <input type="text" id="dropoff-location" placeholder="Dropoff Location" aria-label="Dropoff Location" required>
 
-      <div class="row">
-        <div>
-          <input type="number" id="duration-hours" min="0" step="1" placeholder="Hours" inputmode="numeric" aria-label="Duration hours">
-        </div>
-        <div>
-          <input type="number" id="duration-minutes" min="0" max="59" step="1" placeholder="Minutes" inputmode="numeric" aria-label="Duration minutes">
-        </div>
-      </div>
+      <input type="number" id="duration-hours" min="1" step="1" placeholder="Duration (Hours)" inputmode="numeric" aria-label="Duration in hours">
+      <small>Estimated trip duration, in hours — actual time may vary.</small>
     </fieldset>
 
     <fieldset>
@@ -402,8 +395,7 @@
         $('pickup-location').value = trip.pickupLocation || '';
         $('dropoff-location').value = trip.dropoffLocation || '';
         const durMin = trip.durationMin || 0;
-        $('duration-hours').value = Math.floor(durMin / 60) || '';
-        $('duration-minutes').value = durMin % 60 || '';
+        $('duration-hours').value = durMin ? Math.round(durMin / 60) : '';
         $('rider1-toggle').checked = !!trip.riderStatus1;
         $('rider2-toggle').disabled = !trip.riderStatus1;
         $('rider2-toggle').checked = !!trip.riderStatus2;
@@ -431,7 +423,7 @@
   // ---- Save (create or update) ----
   $('trip-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const durationMin = (Number($('duration-hours').value) || 0) * 60 + (Number($('duration-minutes').value) || 0);
+    const durationMin = (Number($('duration-hours').value) || 0) * 60;
     if (durationMin <= 0) {
       showMessage('error', 'Enter a trip duration greater than 0.');
       return;
