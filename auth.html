@@ -198,6 +198,7 @@
 
 <div id="app" class="page-content hidden">
   <div id="message"></div>
+  <p id="trip-link-hint" class="hidden" style="text-align:center; font-size:0.9rem; margin:0 0 1rem;">Sign in or create an account below to respond to this trip.</p>
 
   <div id="auth-forms">
     <div class="row">
@@ -286,8 +287,9 @@
     <span class="role-badge" id="account-role"></span>
 
     <div id="my-trips-section" style="margin-top:1.25rem;">
-      <p class="my-trips-heading">Your Trips</p>
+      <p class="my-trips-heading" id="my-trips-heading">Your Trips</p>
       <div id="my-trips"></div>
+      <p id="view-all-trips-link" class="hidden" style="text-align:center; margin-bottom:0;"><a href="#" id="view-all-trips-anchor" style="font-size:0.85rem;">View all your trips</a></p>
     </div>
 
     <div style="margin-top:1rem;">
@@ -308,6 +310,24 @@
 
   $('app').classList.remove('hidden');
   const sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+  // A calendar event's respond link lands here as ?tripId=T-0001 — once
+  // signed in, the account's own role/rosterId already identifies who's
+  // responding, so we skip straight to that one trip instead of showing
+  // the full list (no name picker / last-4 needed, unlike respond.html's
+  // calendar-origin flow, which exists for people who aren't signed in).
+  const focusTripId = new URLSearchParams(location.search).get('tripId');
+  let showingAllTrips = !focusTripId;
+
+  if (focusTripId) {
+    $('trip-link-hint').classList.remove('hidden');
+  }
+
+  $('view-all-trips-anchor').addEventListener('click', (e) => {
+    e.preventDefault();
+    showingAllTrips = true;
+    if (currentRosterId) loadMyTrips(currentRosterId);
+  });
 
   // ---- Mode toggle ----
   function switchMode(next) {
@@ -471,6 +491,7 @@
     await sb.auth.signOut();
     $('account-card').classList.add('hidden');
     $('auth-forms').classList.remove('hidden');
+    if (focusTripId) $('trip-link-hint').classList.remove('hidden');
     $('login-form').reset();
     $('signup-form').reset();
     switchMode('login');
@@ -478,6 +499,7 @@
 
   // ---- Shared: load profile, show account card, fire n8n handoff, load trips ----
   let currentProfile = null;
+  let currentRosterId = null;
 
   async function enterAccount(user) {
     showMessage('info', 'Loading profile...');
@@ -494,6 +516,7 @@
 
     currentProfile = profile;
     clearMessage();
+    $('trip-link-hint').classList.add('hidden');
     $('auth-forms').classList.add('hidden');
     $('account-card').classList.remove('hidden');
     $('account-name').textContent = profile.name;
@@ -507,6 +530,7 @@
       await sb.from('profiles').update({ unique_code: rosterId }).eq('id', user.id);
     }
 
+    currentRosterId = rosterId || null;
     if (rosterId) {
       loadMyTrips(rosterId);
     } else {
@@ -554,10 +578,18 @@
     }
   }
 
-  function renderMyTrips(trips, rosterId) {
+  function renderMyTrips(allTrips, rosterId) {
     const container = $('my-trips');
+    const focused = !showingAllTrips && focusTripId;
+    const trips = focused ? allTrips.filter((t) => t.tripId === focusTripId) : allTrips;
+
+    $('my-trips-heading').textContent = focused ? 'Trip ' + focusTripId : 'Your Trips';
+    $('view-all-trips-link').classList.toggle('hidden', !focused);
+
     if (!trips.length) {
-      container.innerHTML = '<p><small>No trips right now.</small></p>';
+      container.innerHTML = focused
+        ? '<p><small>This trip isn\'t available to you right now — it may already be filled or not need your role.</small></p>'
+        : '<p><small>No trips right now.</small></p>';
       return;
     }
     container.innerHTML = trips.map((t) => {
