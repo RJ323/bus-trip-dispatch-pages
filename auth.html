@@ -217,6 +217,7 @@
 
         <button type="submit" class="primary" id="login-btn" style="width:100%;">Sign In</button>
         <p style="text-align:center; margin-bottom:0;"><a href="#" id="forgot-password-link" style="font-size:0.85rem;">Forgot password?</a></p>
+        <p id="no-account-hint" class="hidden" style="text-align:center; margin:0.6rem 0 0;">Don't have an account? <a href="#" id="no-account-signup-link" style="font-size:0.85rem;">Create one</a></p>
       </fieldset>
     </form>
 
@@ -332,6 +333,7 @@
   // ---- Mode toggle ----
   function switchMode(next) {
     clearMessage();
+    $('no-account-hint').classList.add('hidden');
     $('login-form').classList.toggle('hidden', next !== 'login');
     $('signup-form').classList.toggle('hidden', next !== 'signup');
     $('forgot-password-form').classList.toggle('hidden', next !== 'forgot');
@@ -341,10 +343,7 @@
   }
   $('mode-login').addEventListener('click', () => switchMode('login'));
   $('mode-signup').addEventListener('click', () => switchMode('signup'));
-  // Arriving via a trip link (calendar/SMS), most people won't have an
-  // account yet — default to Create Account instead of Sign In. Anyone who
-  // already has one just clicks the Sign In tab.
-  switchMode(focusTripId ? 'signup' : 'login');
+  switchMode('login');
 
   // ---- Forgot / reset password ----
   $('forgot-password-link').addEventListener('click', (e) => {
@@ -484,9 +483,19 @@
 
     if (error) {
       showMessage('error', error.message);
+      // Supabase deliberately returns the same generic error whether the
+      // password was wrong or no account exists at all (anti-enumeration) —
+      // so we can't tell which one happened. Surface the create-account
+      // option either way rather than leaving a no-account visitor stuck.
+      $('no-account-hint').classList.remove('hidden');
       return;
     }
     await enterAccount(data.user);
+  });
+
+  $('no-account-signup-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    switchMode('signup');
   });
 
   // ---- Sign out ----
