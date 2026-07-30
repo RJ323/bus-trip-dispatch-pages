@@ -89,18 +89,20 @@
   }
   legend {
     padding: 0 0.4rem;
-    font-weight: 700;
-    font-size: 0.85rem;
+    font-weight: 800;
+    font-size: 1.2rem;
     letter-spacing: 0.02em;
   }
   label { display: block; margin: 0.75rem 0 0.3rem; font-weight: 600; font-size: 0.85rem; color: var(--slate); }
   input, select {
     width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; font-size: 1rem;
     border: 1px solid var(--card-border); border-radius: 6px; background: transparent; color: inherit;
+    margin-top: 0.75rem;
   }
   input[type="checkbox"] {
-    width: auto; padding: 0; border: none; background: none; margin-right: 0.4rem; vertical-align: middle;
+    width: auto; padding: 0; border: none; background: none; margin-right: 0.4rem; margin-top: 0; vertical-align: middle;
   }
+  input::placeholder { color: var(--slate-light); opacity: 1; }
   input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
   button {
@@ -224,8 +226,7 @@
 
   <fieldset id="lookup-fieldset" class="hidden">
     <legend>Find Trip</legend>
-    <label for="lookup-trip-id">Trip</label>
-    <select id="lookup-trip-id" class="mono"></select>
+    <select id="lookup-trip-id" class="mono" aria-label="Trip"></select>
     <button class="primary" id="lookup-submit">Load Trip</button>
   </fieldset>
 
@@ -239,19 +240,14 @@
         <div><small id="driver-status-display"></small></div>
       </div>
 
-      <label for="trip-date">Trip Date</label>
-      <input type="date" id="trip-date" required>
+      <input type="date" id="trip-date" placeholder="Trip Date" aria-label="Trip Date" required>
 
-      <label for="pickup-time">Pickup Time</label>
-      <input type="time" id="pickup-time" required>
+      <input type="time" id="pickup-time" placeholder="Pickup Time" aria-label="Pickup Time" required>
 
-      <label for="pickup-location">Pickup Location</label>
-      <input type="text" id="pickup-location" required>
+      <input type="text" id="pickup-location" placeholder="Pickup Location" aria-label="Pickup Location" required>
 
-      <label for="dropoff-location">Dropoff Location</label>
-      <input type="text" id="dropoff-location" required>
+      <input type="text" id="dropoff-location" placeholder="Dropoff Location" aria-label="Dropoff Location" required>
 
-      <label>Duration</label>
       <div class="row">
         <div>
           <input type="number" id="duration-hours" min="0" step="1" placeholder="Hours" inputmode="numeric" aria-label="Duration hours">
