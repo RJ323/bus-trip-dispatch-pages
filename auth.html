@@ -637,7 +637,7 @@
         : '';
       return '<div class="trip-item ' + t.myStatus + '">'
         + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
-        + '<div>' + escapeHtml(t.tripDate) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
+        + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
         + '<div>' + escapeHtml(t.pickupLocation) + ' &rarr; ' + escapeHtml(t.dropoffLocation) + '</div>'
         + actions
         + '</div>';
@@ -711,6 +711,10 @@
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
+  }
+  function formatDateMMDDYYYY(isoDate) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+    return m ? m[2] + '/' + m[3] + '/' + m[1] : (isoDate || '');
   }
   function showMessage(type, text) {
     const el = $('message');
