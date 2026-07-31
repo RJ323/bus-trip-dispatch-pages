@@ -278,6 +278,14 @@
   const cfg = window.APP_CONFIG;
   const $ = (id) => document.getElementById(id);
 
+  // Capitalizes just the first letter of each word (street name, road/circle/
+  // etc. suffix, city, state) — leaves everything else exactly as typed, so
+  // "5290 griggs rd houston, tx" becomes "5290 Griggs Rd Houston, Tx" without
+  // forcing state abbreviations or the rest of any word to a different case.
+  function capitalizeAddressWords(str) {
+    return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   // ---- Gate ----
   const gate = $('gate'), app = $('app');
   if (!cfg || !cfg.sharedSecret) {
@@ -309,6 +317,13 @@
   // ---- Mode switching ----
   let mode = null; // 'create' | 'edit'
   let loadedTripId = null;
+
+  $('pickup-location').addEventListener('blur', (e) => {
+    e.target.value = capitalizeAddressWords(e.target.value);
+  });
+  $('dropoff-location').addEventListener('blur', (e) => {
+    e.target.value = capitalizeAddressWords(e.target.value);
+  });
 
   $('mode-create').addEventListener('click', () => switchMode('create'));
   $('mode-edit').addEventListener('click', () => switchMode('edit'));
@@ -432,8 +447,8 @@
       action: mode === 'edit' && loadedTripId ? 'update' : 'create',
       tripDate: $('trip-date').value,
       pickupTime: $('pickup-time').value,
-      pickupLocation: $('pickup-location').value.trim(),
-      dropoffLocation: $('dropoff-location').value.trim(),
+      pickupLocation: capitalizeAddressWords($('pickup-location').value.trim()),
+      dropoffLocation: capitalizeAddressWords($('dropoff-location').value.trim()),
       durationMin: durationMin,
       rider1Needed: $('rider1-toggle').checked,
       rider2Needed: $('rider1-toggle').checked && $('rider2-toggle').checked,
