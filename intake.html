@@ -262,7 +262,7 @@
     <fieldset>
       <legend>Vehicle Escort (optional)</legend>
 
-      <label><input type="checkbox" id="escort-toggle"> Vehicle escort needed</label>
+      <label><input type="checkbox" id="escort-toggle"> Escort needed</label>
       <small id="escort-status-display"></small>
     </fieldset>
 
@@ -377,7 +377,7 @@
         trips.forEach((trip) => {
           const opt = document.createElement('option');
           opt.value = trip.tripId;
-          opt.textContent = trip.tripId + ' — ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + trip.status + ')';
+          opt.textContent = trip.tripId + ' — ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + formatTripSlotStatus(trip) + ')';
           select.appendChild(opt);
         });
         select.disabled = false;
@@ -510,6 +510,20 @@
   function formatDateMMDDYYYY(isoDate) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
     return m ? m[2] + '-' + m[3] + '-' + m[1] : (isoDate || '');
+  }
+  // Trip Status only ever reflects the driver slot — a "Filled" trip can
+  // still have an open rider or escort slot, so the picker needs each
+  // role's status spelled out separately instead of implying everything's
+  // covered.
+  function formatTripSlotStatus(trip) {
+    const parts = ['Driver: ' + trip.status];
+    if (trip.riderStatus2) {
+      parts.push('Rider 1: ' + trip.riderStatus1, 'Rider 2: ' + trip.riderStatus2);
+    } else if (trip.riderStatus1) {
+      parts.push('Rider: ' + trip.riderStatus1);
+    }
+    if (trip.escortStatus) parts.push('Escort: ' + trip.escortStatus);
+    return parts.join(', ');
   }
   function setSaving(saving) {
     $('save-btn').disabled = saving;

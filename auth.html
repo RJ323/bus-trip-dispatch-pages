@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Account Access</title>
+<title>Trip Dispatch — Account Access</title>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -13,6 +13,7 @@
     --ink-2: #16294d;
     --blue: #2563eb;
     --amber: #f59e0b;
+    --teal: #0d9488;
     --paper: #f7f7f5;
     --slate: #475569;
     --slate-light: #94a3b8;
@@ -26,6 +27,7 @@
       --card-border: #24334f;
       --slate: #b8c4d6;
       --slate-light: #7488a6;
+      --teal: #2dd4bf;
     }
   }
   * { box-sizing: border-box; }
@@ -200,9 +202,34 @@
     text-transform: uppercase;
   }
   .trip-badge.available { background: #f59e0b14; color: var(--amber); }
-  .trip-badge.assigned { background: #16a34a14; color: #16a34a; }
+  .trip-badge.assignee { background: #f59e0b14; color: var(--amber); }
   .trip-item .row { margin-bottom: 0; margin-top: 0.6rem; }
   .trip-item button { margin-top: 0; padding: 0.55rem 0.8rem; font-size: 0.85rem; }
+  .trip-address a { color: var(--teal); }
+
+  .consent-text {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--slate);
+    margin: 0.6rem 0 0.5rem;
+  }
+  .consent-text a { font-weight: 600; }
+  .consent-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 0.9rem;
+  }
+  .consent-checkbox input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.1rem;
+    accent-color: var(--amber);
+    flex-shrink: 0;
+  }
+  .consent-checkbox:has(input:checked) { color: var(--amber); }
 
   @media (prefers-reduced-motion: no-preference) {
     fieldset, .account-card { animation: rise 0.25s ease-out; }
@@ -218,7 +245,7 @@
 <header class="console-header">
   <img src="banner.png" alt="Trip Dispatch">
 </header>
-<div class="console-eyebrow">Account Access</div>
+<div class="console-eyebrow">Trip Dispatch — Account Access</div>
 
 <div id="config-error" class="page-content hidden">
   <div class="account-card">
@@ -278,6 +305,9 @@
         <input type="text" id="signup-last-name" autocomplete="family-name" placeholder="Last Name" aria-label="Last Name" required>
 
         <input type="tel" id="signup-contact" autocomplete="tel" placeholder="Phone / Contact" aria-label="Phone / Contact" required>
+
+        <p class="consent-text">By entering your phone number, you agree to receive SMS messages from Trip Dispatch regarding trip assignments, status updates, and reminders. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
+        <label class="consent-checkbox"><input type="checkbox" id="signup-sms-consent" required> I agree to receive SMS trip notifications.</label>
 
         <select id="signup-role" aria-label="Role" required>
           <option value="" disabled selected>Select a role…</option>
@@ -440,6 +470,16 @@
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
   }
 
+  // ---- Live-format phone as (XXX) XXX-XXXX while typing ----
+  $('signup-contact').addEventListener('input', () => {
+    const digits = $('signup-contact').value.replace(/\D/g, '').slice(0, 10);
+    let formatted = digits;
+    if (digits.length > 6) formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+    else if (digits.length > 3) formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+    else if (digits.length > 0) formatted = '(' + digits;
+    $('signup-contact').value = formatted;
+  });
+
   // ---- Sign up ----
   $('signup-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -461,6 +501,10 @@
       showMessage('error', 'Password and Confirm Password do not match.');
       return;
     }
+    if (!$('signup-sms-consent').checked) {
+      showMessage('error', 'You must agree to receive SMS trip notifications to create an account.');
+      return;
+    }
 
     setBusy('signup-btn', true, 'Creating account...');
     showMessage('info', 'Creating account...');
@@ -468,7 +512,7 @@
       email,
       password,
       options: {
-        data: { name, contact, role },
+        data: { name, contact, role, smsConsent: true, consentAt: new Date().toISOString() },
         emailRedirectTo: window.location.origin + window.location.pathname
       }
     });
@@ -536,7 +580,7 @@
     showMessage('info', 'Loading profile...');
     const { data: profile, error } = await sb
       .from('profiles')
-      .select('name, contact, role, unique_code')
+      .select('name, contact, role, unique_code, sms_consent, consent_at')
       .eq('id', user.id)
       .single();
 
@@ -555,7 +599,17 @@
     $('account-role').className = 'role-badge role-' + profile.role;
 
     let rosterId = profile.unique_code;
-    const handoffResult = await sendHandoff({ id: user.id, name: profile.name, role: profile.role, contact: profile.contact, email: user.email });
+    const handoffResult = await sendHandoff({ id: user.id, name: profile.name, role: profile.role, contact: profile.contact, email: user.email, smsConsent: !!profile.sms_consent, consentAt: profile.consent_at });
+    // A blocked handoff (email matches an existing roster row under a
+    // different name) returns ok:false with a message and no rosterId —
+    // surface that clearly instead of silently falling through to "no
+    // roster ID on file", which would look like a generic setup problem
+    // rather than the identity conflict it actually is.
+    if (handoffResult && handoffResult.ok === false && handoffResult.message) {
+      showMessage('error', handoffResult.message);
+      $('my-trips').innerHTML = '';
+      return;
+    }
     if (handoffResult && handoffResult.rosterId && handoffResult.rosterId !== rosterId) {
       rosterId = handoffResult.rosterId;
       await sb.from('profiles').update({ unique_code: rosterId }).eq('id', user.id);
@@ -582,7 +636,8 @@
         },
         body: JSON.stringify(payload)
       });
-      return await res.json();
+      const body = await res.json();
+      return { ok: res.ok, ...body };
     } catch (err) {
       console.warn('Auth handoff failed:', err);
       return null;
@@ -629,8 +684,9 @@
       const durM = (t.durationMin || 0) % 60;
       const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
       const badge = t.myStatus === 'assigned'
-        ? '<span class="trip-badge assigned">Assigned</span>'
+        ? '<span class="trip-badge assignee">Assigned ' + escapeHtml(formatInitialLastName(currentProfile.name)) + '</span>'
         : '<span class="trip-badge available">Available</span>';
+      const mapsLink = (loc) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc || '');
       const actions = t.myStatus === 'available'
         ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Accept</button>'
           + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Decline</button></div>'
@@ -638,7 +694,8 @@
       return '<div class="trip-item ' + t.myStatus + '">'
         + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
         + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
-        + '<div>' + escapeHtml(t.pickupLocation) + ' &rarr; ' + escapeHtml(t.dropoffLocation) + '</div>'
+        + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
+        + ' &rarr; <a href="' + mapsLink(t.dropoffLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.dropoffLocation) + '</a></div>'
         + actions
         + '</div>';
     }
@@ -715,6 +772,11 @@
   function formatDateMMDDYYYY(isoDate) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
     return m ? m[2] + '/' + m[3] + '/' + m[1] : (isoDate || '');
+  }
+  function formatInitialLastName(fullName) {
+    const parts = (fullName || '').trim().split(/\s+/);
+    if (parts.length < 2) return fullName || '';
+    return parts[0].charAt(0).toUpperCase() + '. ' + parts[parts.length - 1];
   }
   function showMessage(type, text) {
     const el = $('message');

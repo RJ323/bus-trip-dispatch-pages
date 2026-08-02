@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Dispatch — Scheduled Trips</title>
+<script src="config.js"></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #0f1f3d;
+    --ink-2: #16294d;
+    --blue: #2563eb;
+    --amber: #f59e0b;
+    --paper: #f7f7f5;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #ffffff;
+    --card-border: #e2e2df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b1220;
+      --card: #12203a;
+      --card-border: #24334f;
+      --slate: #b8c4d6;
+      --slate-light: #7488a6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    line-height: 1.45;
+    background: var(--paper);
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7ebf3; }
+  }
+  a { color: var(--blue); }
+
+  .console-header {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+  }
+  .console-header img {
+    display: block;
+    max-width: 480px;
+    width: 100%;
+    height: auto;
+  }
+  .console-eyebrow {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0.9rem 1rem 0 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate-light);
+  }
+
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+  .subheading {
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.5rem;
+  }
+
+  #message {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    display: none;
+    font-size: 0.92rem;
+  }
+  #message.info { display: block; background: #2563eb14; border-color: var(--blue); }
+  #message.error { display: block; background: #dc262614; border-color: #dc2626; }
+  #message.success { display: block; background: #16a34a14; border-color: #16a34a; }
+
+  fieldset {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1rem;
+    background: var(--card);
+  }
+  legend {
+    padding: 0 0.4rem;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+  }
+  input, select {
+    width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; font-size: 1rem;
+    border: 1px solid var(--card-border); border-radius: 6px; background: transparent; color: inherit;
+    margin-top: 0.75rem;
+  }
+  input::placeholder { color: var(--slate-light); opacity: 1; }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  button {
+    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px; border: none;
+    cursor: pointer; margin-top: 0.75rem; letter-spacing: 0.01em;
+  }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .primary { background: var(--blue); color: #fff; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hidden { display: none !important; }
+
+  .account-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .consent-text {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--slate);
+    margin: 0.6rem 0 0.5rem;
+  }
+  .consent-text a { font-weight: 600; }
+  .consent-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 0.9rem;
+  }
+  .consent-checkbox input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.1rem;
+    accent-color: var(--amber);
+    flex-shrink: 0;
+  }
+  .consent-checkbox:has(input:checked) { color: var(--amber); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    fieldset, .account-card { animation: rise 0.25s ease-out; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header class="console-header">
+  <img src="banner.png" alt="Trip Dispatch">
+</header>
+<div class="console-eyebrow">Scheduled Trips</div>
+
+<div id="config-error" class="page-content hidden">
+  <div class="account-card">
+    <p style="margin-top:0; color:#dc2626;">config.js is missing the Scheduled Trips webhook URL. Copy config.example.js to config.js and fill in scheduledTripsWebhookUrl.</p>
+  </div>
+</div>
+
+<div id="app" class="page-content hidden">
+  <div id="message"></div>
+  <p class="subheading">Register to receive trip notifications and status updates.</p>
+  <p class="consent-text" style="text-align:center;">This form registers you to receive trip notifications only. You will not need to sign in, and this does not grant access to accept, decline, or manage trips.</p>
+
+  <form id="signup-form">
+    <fieldset>
+      <legend>Register for Trip Notifications</legend>
+
+      <input type="text" id="first-name" autocomplete="given-name" placeholder="First Name" aria-label="First Name" required>
+
+      <input type="text" id="last-name" autocomplete="family-name" placeholder="Last Name" aria-label="Last Name" required>
+
+      <input type="tel" id="phone" autocomplete="tel" placeholder="Phone" aria-label="Phone" required>
+
+      <input type="email" id="email" autocomplete="email" placeholder="Email" aria-label="Email" required>
+
+      <p class="consent-text">By submitting this form, you agree to receive trip notifications from Trip Dispatch by SMS and/or email, including trip status updates and escalation alerts. Message frequency varies. Msg &amp; data rates may apply for SMS. Reply STOP to opt out of texts, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
+      <label class="consent-checkbox"><input type="checkbox" id="sms-consent" required> I agree to receive SMS trip notifications.</label>
+
+      <select id="role" aria-label="Role" required>
+        <option value="" disabled selected>Select a role…</option>
+        <option value="Trip Summary Roster">Trip Summary Roster</option>
+        <option value="Trip Supervisor">Trip Supervisor</option>
+      </select>
+
+      <button type="submit" class="primary" id="register-btn" style="width:100%;" disabled>Register</button>
+    </fieldset>
+  </form>
+
+  <div id="success-card" class="account-card hidden">
+    <p style="margin-top:0; font-weight:800; font-size:1.15rem;">You're registered</p>
+    <p style="margin-bottom:0;">You'll now receive trip notifications for the role you selected. No further action is needed.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const cfg = window.APP_CONFIG;
+  const $ = (id) => document.getElementById(id);
+
+  if (!cfg || !cfg.scheduledTripsWebhookUrl || cfg.scheduledTripsWebhookUrl.indexOf('your-n8n-instance') !== -1) {
+    $('config-error').classList.remove('hidden');
+    return;
+  }
+  $('app').classList.remove('hidden');
+
+  const requiredFields = ['first-name', 'last-name', 'phone', 'email', 'role'];
+
+  function updateSubmitState() {
+    const allFilled = requiredFields.every((id) => $(id).value.trim() !== '');
+    $('register-btn').disabled = !(allFilled && $('sms-consent').checked);
+  }
+  requiredFields.forEach((id) => $(id).addEventListener('input', updateSubmitState));
+  $('role').addEventListener('change', updateSubmitState);
+  $('sms-consent').addEventListener('change', updateSubmitState);
+
+  // Live-format as (XXX) XXX-XXXX while typing, matching the phone-formatted
+  // requirement without needing a full input-mask library for one field.
+  $('phone').addEventListener('input', () => {
+    const digits = $('phone').value.replace(/\D/g, '').slice(0, 10);
+    let formatted = digits;
+    if (digits.length > 6) formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+    else if (digits.length > 3) formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+    else if (digits.length > 0) formatted = '(' + digits;
+    $('phone').value = formatted;
+  });
+
+  function setBusy(busy) {
+    $('register-btn').disabled = busy;
+    $('register-btn').textContent = busy ? 'Registering...' : 'Register';
+  }
+  function showMessage(type, text) {
+    const el = $('message');
+    el.className = type;
+    el.textContent = text;
+  }
+
+  $('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      firstName: $('first-name').value.trim(),
+      lastName: $('last-name').value.trim(),
+      phone: $('phone').value.trim(),
+      email: $('email').value.trim(),
+      role: $('role').value,
+      consentAt: new Date().toISOString()
+    };
+
+    setBusy(true);
+    showMessage('info', 'Registering...');
+    try {
+      const res = await fetch(cfg.scheduledTripsWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dispatch-Secret': cfg.sharedSecret
+        },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setBusy(false);
+        showMessage('error', body.message || 'Could not complete registration.');
+        return;
+      }
+      clearMessageEl();
+      $('signup-form').classList.add('hidden');
+      $('success-card').classList.remove('hidden');
+    } catch (err) {
+      setBusy(false);
+      showMessage('error', 'Could not reach the server. Please try again.');
+    }
+  });
+
+  function clearMessageEl() {
+    const el = $('message');
+    el.className = '';
+    el.textContent = '';
+  }
+})();
+</script>
+</body>
+</html>
