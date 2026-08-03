@@ -267,7 +267,7 @@
       <button class="secondary mode-btn" id="mode-login">Sign In</button>
       <button class="secondary mode-btn" id="mode-signup">Create Account</button>
     </div>
-    <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="index.html">&larr; Back</a></p>
+    <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="home.html">&larr; Back</a></p>
 
     <form id="login-form" class="hidden">
       <fieldset>
@@ -339,6 +339,10 @@
     <p style="margin-top:0;">Signed in as</p>
     <p class="name" id="account-name"></p>
     <span class="role-badge" id="account-role"></span>
+
+    <div id="awaiting-approval-section" class="hidden" style="margin-top:1.25rem;">
+      <p style="font-size:0.9rem; color:var(--slate);">Your account is awaiting approval. You'll be able to see trip information here once an administrator approves your account.</p>
+    </div>
 
     <div id="my-trips-section" style="margin-top:1.25rem;">
       <p class="my-trips-heading" id="my-trips-heading">Your Trips</p>
@@ -602,7 +606,7 @@
     showMessage('info', 'Loading profile...');
     const { data: profile, error } = await sb
       .from('profiles')
-      .select('name, contact, role, unique_code, sms_consent, consent_at')
+      .select('name, contact, role, unique_code, sms_consent, consent_at, approved')
       .eq('id', user.id)
       .single();
 
@@ -620,6 +624,19 @@
     $('account-role').textContent = profile.role;
     $('account-role').className = 'role-badge role-' + profile.role;
 
+    // New accounts need administrator approval (set manually in the Supabase
+    // Table Editor for now) before they can see any trip data. This is a
+    // frontend convenience only — the n8n workflows behind My Trips/Trips
+    // Overview/Trip Respond re-check profiles.approved themselves before
+    // touching the Sheet, so this isn't the only place it's enforced.
+    if (!profile.approved) {
+      $('my-trips-section').classList.add('hidden');
+      $('trips-overview-section').classList.add('hidden');
+      $('awaiting-approval-section').classList.remove('hidden');
+      return;
+    }
+    $('awaiting-approval-section').classList.add('hidden');
+
     // Trip Summary Roster / Trip Supervisor accounts get a read-only view of
     // every scheduled trip instead of a personal, roster-ID-scoped "Your
     // Trips" list — they never accept/decline, so there's no roster row to
@@ -628,7 +645,7 @@
     if (profile.role === 'roster' || profile.role === 'supervisor') {
       $('my-trips-section').classList.add('hidden');
       $('trips-overview-section').classList.remove('hidden');
-      loadTripsOverview();
+      loadTripsOverview(user.id);
       return;
     }
     $('trips-overview-section').classList.add('hidden');
@@ -659,7 +676,7 @@
     }
   }
 
-  async function loadTripsOverview() {
+  async function loadTripsOverview(userId) {
     const container = $('trips-overview');
     container.innerHTML = '<p><small>Loading trips...</small></p>';
     if (!cfg.tripsOverviewWebhookUrl || cfg.tripsOverviewWebhookUrl.indexOf('your-n8n-instance') !== -1) {
@@ -667,9 +684,10 @@
       return;
     }
     try {
-      const res = await fetch(cfg.tripsOverviewWebhookUrl, {
+      const res = await fetch(cfg.tripsOverviewWebhookUrl + '?userId=' + encodeURIComponent(userId), {
         headers: { 'X-Dispatch-Secret': cfg.sharedSecret }
       });
+      if (res.status === 403) throw new Error('Your account is awaiting approval.');
       if (!res.ok) throw new Error('Could not load trips (' + res.status + ').');
       const trips = await res.json();
       if (!trips.length) {

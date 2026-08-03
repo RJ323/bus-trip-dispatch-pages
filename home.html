@@ -62,18 +62,7 @@
     color: var(--slate-light);
   }
 
-  .landing-bg {
-    min-height: calc(100vh - 168px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    background-image: linear-gradient(rgba(10,14,23,0.82), rgba(10,14,23,0.92)), url("background.jpeg");
-    background-size: cover;
-    background-position: center;
-  }
-
-  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; width: 100%; }
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
 
   .account-card {
     background: var(--card);
@@ -96,13 +85,6 @@
     text-decoration: none; letter-spacing: 0.01em;
   }
   a.secondary:hover { border-color: var(--blue); color: var(--blue); }
-  a.primary {
-    display: block;
-    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px;
-    background: var(--blue); color: #fff; border: 1.5px solid var(--blue);
-    text-decoration: none; letter-spacing: 0.01em;
-  }
-  a.primary:hover { opacity: 0.92; }
 
   @media (prefers-reduced-motion: no-preference) {
     .account-card { animation: rise 0.25s ease-out; }
@@ -120,15 +102,16 @@
 </header>
 <div class="console-eyebrow">Trip Dispatch</div>
 
-<div class="landing-bg">
-  <div class="page-content">
-    <div class="account-card">
-      <h1>Trip Dispatch</h1>
-      <p>This system is for authorized personnel only. If you were not sent a link directly, or you do not otherwise have access, please exit.</p>
-      <div class="row">
-        <a class="primary" href="home.html">Enter</a>
-        <a class="secondary" href="https://www.google.com">Exit</a>
-      </div>
+<div class="page-content">
+  <div class="account-card">
+    <h1>Trip Dispatch</h1>
+    <p>Choose the area you have access to.</p>
+    <div class="row">
+      <a class="secondary" href="intake.html">Trip Intake (staff)</a>
+      <a class="secondary" href="auth.html">Account Access</a>
+    </div>
+    <div style="text-align:center; margin-top:0.75rem;">
+      <a class="secondary" href="scheduled-trips.html" style="display:inline-block; padding-left:2.25rem; padding-right:2.25rem;">Scheduled Trips</a>
     </div>
   </div>
 </div>
