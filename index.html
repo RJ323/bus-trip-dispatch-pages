@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Dispatch</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #0f1f3d;
+    --ink-2: #16294d;
+    --paper: #f7f7f5;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #ffffff;
+    --card-border: #e2e2df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b1220;
+      --card: #12203a;
+      --card-border: #24334f;
+      --slate: #b8c4d6;
+      --slate-light: #7488a6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    line-height: 1.45;
+    background: var(--paper);
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7ebf3; }
+  }
+
+  .console-header {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+  }
+  .console-header img {
+    display: block;
+    max-width: 480px;
+    width: 100%;
+    height: auto;
+  }
+  .console-eyebrow {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0.9rem 1rem 0 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate-light);
+  }
+
+  .page-content { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+  .account-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .account-card h1 { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.6rem; }
+  .account-card p { margin-bottom: 0; color: var(--slate); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .account-card { animation: rise 0.25s ease-out; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header class="console-header">
+  <img src="banner.png" alt="Trip Dispatch">
+</header>
+<div class="console-eyebrow">Trip Dispatch</div>
+
+<div class="page-content">
+  <div class="account-card">
+    <h1>Trip Dispatch</h1>
+    <p>You've reached the Trip Dispatch notification system. If you were sent a link to respond to a trip or register for notifications, use that link directly.</p>
+  </div>
+</div>
+
+</body>
+</html>
