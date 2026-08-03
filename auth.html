@@ -132,6 +132,11 @@
   .role-badge.role-driver { background: #2563eb14; color: var(--blue); }
   .role-badge.role-rider  { background: #f59e0b14; color: var(--amber); }
   .role-badge.role-escort { background: #16a34a14; color: #16a34a; }
+  .role-badge.role-roster { background: #0d948814; color: var(--teal); }
+  .role-badge.role-supervisor { background: #7c3aed14; color: #7c3aed; }
+
+  .overview-role { margin-top: 0.35rem; font-size: 0.85rem; }
+  .overview-role .role-badge { padding: 0.15rem 0.5rem; font-size: 0.62rem; margin-right: 0.4rem; }
 
   .account-card {
     background: var(--card);
@@ -262,6 +267,7 @@
       <button class="secondary mode-btn" id="mode-login">Sign In</button>
       <button class="secondary mode-btn" id="mode-signup">Create Account</button>
     </div>
+    <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="index.html">&larr; Back</a></p>
 
     <form id="login-form" class="hidden">
       <fieldset>
@@ -338,6 +344,12 @@
       <p class="my-trips-heading" id="my-trips-heading">Your Trips</p>
       <div id="my-trips"></div>
       <p id="view-all-trips-link" class="hidden" style="text-align:center; margin-bottom:0;"><a href="#" id="view-all-trips-anchor" style="font-size:0.85rem;">View all your trips</a></p>
+    </div>
+
+    <div id="trips-overview-section" class="hidden" style="margin-top:1.25rem;">
+      <p class="my-trips-heading">Scheduled Trips</p>
+      <p style="font-size:0.8rem; color:var(--slate-light); margin:0 0 0.6rem;">Read-only overview — sign in as a driver, rider, or vehicle escort to accept or decline a trip.</p>
+      <div id="trips-overview"></div>
     </div>
 
     <div style="margin-top:1rem;">
@@ -608,6 +620,20 @@
     $('account-role').textContent = profile.role;
     $('account-role').className = 'role-badge role-' + profile.role;
 
+    // Trip Summary Roster / Trip Supervisor accounts get a read-only view of
+    // every scheduled trip instead of a personal, roster-ID-scoped "Your
+    // Trips" list — they never accept/decline, so there's no roster row to
+    // sync via the auth-handoff webhook (that endpoint only routes
+    // driver/rider/escort roles).
+    if (profile.role === 'roster' || profile.role === 'supervisor') {
+      $('my-trips-section').classList.add('hidden');
+      $('trips-overview-section').classList.remove('hidden');
+      loadTripsOverview();
+      return;
+    }
+    $('trips-overview-section').classList.add('hidden');
+    $('my-trips-section').classList.remove('hidden');
+
     let rosterId = profile.unique_code;
     const handoffResult = await sendHandoff({ id: user.id, name: profile.name, role: profile.role, contact: profile.contact, email: user.email, smsConsent: !!profile.sms_consent, consentAt: profile.consent_at });
     // A blocked handoff (email matches an existing roster row under a
@@ -631,6 +657,53 @@
     } else {
       $('my-trips').innerHTML = '<p><small>No roster ID on file yet.</small></p>';
     }
+  }
+
+  async function loadTripsOverview() {
+    const container = $('trips-overview');
+    container.innerHTML = '<p><small>Loading trips...</small></p>';
+    if (!cfg.tripsOverviewWebhookUrl || cfg.tripsOverviewWebhookUrl.indexOf('your-n8n-instance') !== -1) {
+      container.innerHTML = '<p><small>Trip overview not configured yet.</small></p>';
+      return;
+    }
+    try {
+      const res = await fetch(cfg.tripsOverviewWebhookUrl, {
+        headers: { 'X-Dispatch-Secret': cfg.sharedSecret }
+      });
+      if (!res.ok) throw new Error('Could not load trips (' + res.status + ').');
+      const trips = await res.json();
+      if (!trips.length) {
+        container.innerHTML = '<p><small>No upcoming trips.</small></p>';
+        return;
+      }
+      container.innerHTML = trips.map(renderOverviewTrip).join('');
+    } catch (err) {
+      container.innerHTML = '<p><small>Could not load trips: ' + escapeHtml(err.message) + '</small></p>';
+    }
+  }
+
+  function renderOverviewTrip(t) {
+    const durH = Math.floor((t.durationMin || 0) / 60);
+    const durM = (t.durationMin || 0) % 60;
+    const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
+    const mapsLink = (loc) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc || '');
+
+    function roleLine(label, roleClass, status, name) {
+      if (!status) return ''; // role not needed on this trip
+      const text = status === 'Filled' && name ? name : status;
+      return '<div class="overview-role"><span class="role-badge role-' + roleClass + '">' + label + '</span>' + escapeHtml(text) + '</div>';
+    }
+
+    return '<div class="trip-item">'
+      + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span></div>'
+      + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
+      + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
+      + ' &rarr; <a href="' + mapsLink(t.dropoffLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.dropoffLocation) + '</a></div>'
+      + roleLine('Driver', 'driver', t.driverStatus, t.driverName)
+      + roleLine(t.riderStatus2 ? 'Rider 1' : 'Rider', 'rider', t.riderStatus1, t.riderName1)
+      + roleLine('Rider 2', 'rider', t.riderStatus2, t.riderName2)
+      + roleLine('Escort', 'escort', t.escortStatus, t.escortName)
+      + '</div>';
   }
 
   async function sendHandoff(payload) {

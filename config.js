@@ -44,6 +44,11 @@ window.APP_CONFIG = {
   // form. role is 'Trip Summary Roster' or 'Trip Supervisor'.
   scheduledTripsWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/scheduled-trips-signup',
 
+  // n8n webhook returning every upcoming trip with full per-role assignment
+  // detail — powers auth.html's read-only overview for Trip Summary
+  // Roster/Trip Supervisor accounts.
+  tripsOverviewWebhookUrl: 'https://jarezz.app.n8n.cloud/webhook/trips-overview',
+
   // Sent as the X-Dispatch-Secret header on every request. intake.html also
   // uses this for its passphrase gate; respond.html no longer has a gate
   // (drivers already prove identity via the personalized link / last-4

@@ -59,6 +59,15 @@ window.APP_CONFIG = {
   // on name mismatch" convention as authHandoffWebhookUrl.
   scheduledTripsWebhookUrl: 'https://your-n8n-instance/webhook/scheduled-trips-signup',
 
+  // n8n webhook that accepts GET (no params) and returns every upcoming,
+  // non-cancelled trip with full per-role assignment detail: [{ tripId,
+  // tripDate, pickupTime, pickupLocation, dropoffLocation, durationMin,
+  // driverStatus, driverName, riderName1, riderStatus1, riderName2,
+  // riderStatus2, escortName, escortStatus }]. Powers the read-only
+  // "Scheduled Trips" overview auth.html shows for Trip Summary
+  // Roster/Trip Supervisor accounts instead of "Your Trips".
+  tripsOverviewWebhookUrl: 'https://your-n8n-instance/webhook/trips-overview',
+
   // Sent as the X-Dispatch-Secret header on every request. intake.html also
   // uses this for its passphrase gate; respond.html no longer has a gate
   // (drivers already prove identity via the personalized link / last-4

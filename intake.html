@@ -38,6 +38,7 @@
   @media (prefers-color-scheme: dark) {
     body { color: #e7ebf3; }
   }
+  a { color: var(--blue); }
   .mono {
     font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
   }
@@ -212,6 +213,7 @@
     <input type="password" id="gate-input" placeholder="Passphrase" autocomplete="off">
     <button class="primary" id="gate-submit" style="width:100%;">Enter</button>
     <div id="gate-error" class="hidden" style="color:#dc2626; margin-top:0.5rem; font-size:0.85rem;">Incorrect passphrase.</div>
+    <p style="text-align:center; font-size:0.95rem; margin:0.75rem 0 0;"><a href="index.html">&larr; Back</a></p>
   </div>
 </div>
 
@@ -220,6 +222,7 @@
     <button class="secondary" id="mode-create">Create New Trip</button>
     <button class="secondary" id="mode-edit">Load Existing Trip</button>
   </div>
+  <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="index.html">&larr; Back</a></p>
 
   <div id="message"></div>
 

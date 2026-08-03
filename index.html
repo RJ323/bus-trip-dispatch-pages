@@ -9,6 +9,7 @@
     color-scheme: light dark;
     --ink: #0f1f3d;
     --ink-2: #16294d;
+    --blue: #2563eb;
     --paper: #f7f7f5;
     --slate: #475569;
     --slate-light: #94a3b8;
@@ -35,6 +36,7 @@
   @media (prefers-color-scheme: dark) {
     body { color: #e7ebf3; }
   }
+  a { color: var(--blue); }
 
   .console-header {
     background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
@@ -71,7 +73,18 @@
     text-align: center;
   }
   .account-card h1 { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.6rem; }
-  .account-card p { margin-bottom: 0; color: var(--slate); }
+  .account-card p { margin: 0 0 1.25rem; color: var(--slate); }
+  .account-card p:last-child { margin-bottom: 0; }
+
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .row > a { flex: 1; }
+  a.secondary {
+    display: block;
+    font-size: 0.95rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 8px;
+    background: transparent; color: inherit; border: 1.5px solid var(--card-border);
+    text-decoration: none; letter-spacing: 0.01em;
+  }
+  a.secondary:hover { border-color: var(--blue); color: var(--blue); }
 
   @media (prefers-reduced-motion: no-preference) {
     .account-card { animation: rise 0.25s ease-out; }
@@ -92,7 +105,14 @@
 <div class="page-content">
   <div class="account-card">
     <h1>Trip Dispatch</h1>
-    <p>You've reached the Trip Dispatch notification system. If you were sent a link to respond to a trip or register for notifications, use that link directly.</p>
+    <p>Choose the area you have access to.</p>
+    <div class="row">
+      <a class="secondary" href="intake.html">Trip Intake (staff)</a>
+      <a class="secondary" href="auth.html">Account Access</a>
+    </div>
+    <div style="text-align:center; margin-top:0.75rem;">
+      <a class="secondary" href="scheduled-trips.html" style="display:inline-block; padding-left:2.25rem; padding-right:2.25rem;">Scheduled Trips</a>
+    </div>
   </div>
 </div>
 

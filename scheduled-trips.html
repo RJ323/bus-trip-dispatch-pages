@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trip Dispatch — Scheduled Trips</title>
 <script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     color-scheme: light dark;
@@ -112,8 +113,13 @@
   }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .primary { background: var(--blue); color: #fff; }
+  .secondary { background: transparent; color: inherit; border: 1.5px solid var(--card-border); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   .hidden { display: none !important; }
+
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .row > button, .row > div { flex: 1; }
+  .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
   .account-card {
     background: var(--card);
@@ -166,16 +172,32 @@
 
 <div id="config-error" class="page-content hidden">
   <div class="account-card">
-    <p style="margin-top:0; color:#dc2626;">config.js is missing the Scheduled Trips webhook URL. Copy config.example.js to config.js and fill in scheduledTripsWebhookUrl.</p>
+    <p style="margin-top:0; color:#dc2626;">config.js is missing Supabase or Scheduled Trips webhook settings. Copy config.example.js to config.js and fill in supabaseUrl / supabaseAnonKey / scheduledTripsWebhookUrl.</p>
   </div>
 </div>
 
 <div id="app" class="page-content hidden">
   <div id="message"></div>
-  <p class="subheading">Register to receive trip notifications and status updates.</p>
-  <p class="consent-text" style="text-align:center;">This form registers you to receive trip notifications only. You will not need to sign in, and this does not grant access to accept, decline, or manage trips.</p>
+  <p class="subheading">Sign in or register to receive trip notifications and status updates.</p>
 
-  <form id="signup-form">
+  <div class="row">
+    <button class="secondary mode-btn" id="mode-login">Sign In</button>
+    <button class="secondary mode-btn" id="mode-register">Register</button>
+  </div>
+  <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="index.html">&larr; Back</a></p>
+
+  <form id="login-form" class="hidden">
+    <fieldset>
+      <legend>Sign In</legend>
+      <input type="email" id="login-email" autocomplete="email" placeholder="Email" aria-label="Email" required>
+      <input type="password" id="login-password" autocomplete="current-password" placeholder="Password" aria-label="Password" required>
+      <button type="submit" class="primary" id="login-btn" style="width:100%;">Sign In</button>
+    </fieldset>
+  </form>
+
+  <p id="register-consent-note" class="consent-text hidden" style="text-align:center;">This form registers you to receive trip notifications only. It does not grant access to accept, decline, or manage trips.</p>
+
+  <form id="signup-form" class="hidden">
     <fieldset>
       <legend>Register for Trip Notifications</legend>
 
@@ -187,22 +209,28 @@
 
       <input type="email" id="email" autocomplete="email" placeholder="Email" aria-label="Email" required>
 
+      <input type="email" id="email-confirm" autocomplete="email" placeholder="Confirm Email" aria-label="Confirm Email" required>
+
       <p class="consent-text">By submitting this form, you agree to receive trip notifications from Trip Dispatch by SMS and/or email, including trip status updates and escalation alerts. Message frequency varies. Msg &amp; data rates may apply for SMS. Reply STOP to opt out of texts, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
       <label class="consent-checkbox"><input type="checkbox" id="sms-consent" required> I agree to receive SMS trip notifications</label>
 
       <select id="role" aria-label="Role" required>
         <option value="" disabled selected>Select a role…</option>
-        <option value="Trip Summary Roster">Trip Summary Roster</option>
-        <option value="Trip Supervisor">Trip Supervisor</option>
+        <option value="roster">Trip Summary Roster</option>
+        <option value="supervisor">Trip Supervisor</option>
       </select>
+
+      <input type="password" id="password" autocomplete="new-password" minlength="6" placeholder="Password" aria-label="Password" required>
+
+      <input type="password" id="password-confirm" autocomplete="new-password" minlength="6" placeholder="Confirm Password" aria-label="Confirm Password" required>
 
       <button type="submit" class="primary" id="register-btn" style="width:100%;" disabled>Register</button>
     </fieldset>
   </form>
 
   <div id="success-card" class="account-card hidden">
-    <p style="margin-top:0; font-weight:800; font-size:1.15rem;">You're registered</p>
-    <p style="margin-bottom:0;">You'll now receive trip notifications for the role you selected. No further action is needed.</p>
+    <p style="margin-top:0; font-weight:800; font-size:1.15rem;">Account created</p>
+    <p style="margin-bottom:0;">Check your email to confirm your account, then sign in above.</p>
   </div>
 </div>
 
@@ -211,13 +239,55 @@
   const cfg = window.APP_CONFIG;
   const $ = (id) => document.getElementById(id);
 
-  if (!cfg || !cfg.scheduledTripsWebhookUrl || cfg.scheduledTripsWebhookUrl.indexOf('your-n8n-instance') !== -1) {
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey || !cfg.scheduledTripsWebhookUrl || cfg.scheduledTripsWebhookUrl.indexOf('your-n8n-instance') !== -1) {
     $('config-error').classList.remove('hidden');
     return;
   }
   $('app').classList.remove('hidden');
+  const sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
-  const requiredFields = ['first-name', 'last-name', 'phone', 'email', 'role'];
+  // ---- Sign In / Register mode switching — start with just the two
+  // buttons showing, matching auth.html's pattern (neither form expands
+  // until one is clicked) ----
+  function switchMode(next) {
+    clearMessageEl();
+    $('login-form').classList.toggle('hidden', next !== 'login');
+    $('signup-form').classList.toggle('hidden', next !== 'register');
+    $('register-consent-note').classList.toggle('hidden', next !== 'register');
+    $('mode-login').classList.toggle('active', next === 'login');
+    $('mode-register').classList.toggle('active', next === 'register');
+  }
+  $('mode-login').addEventListener('click', () => switchMode('login'));
+  $('mode-register').addEventListener('click', () => switchMode('register'));
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('login-email').value.trim();
+    const password = $('login-password').value;
+
+    $('login-btn').disabled = true;
+    $('login-btn').textContent = 'Signing in...';
+    showMessage('info', 'Signing in...');
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      $('login-btn').disabled = false;
+      $('login-btn').textContent = 'Sign In';
+      showMessage('error', error.message);
+      return;
+    }
+    // Supabase's session is stored per-origin, so auth.html picks it up
+    // automatically on load and shows the Scheduled Trips overview — no
+    // need to duplicate that rendering here.
+    showMessage('success', 'Signed in — loading your trips...');
+    window.location.href = 'auth.html';
+  });
+
+  // Sheet role names differ from the shorter values used for Supabase's
+  // profiles.role (kept consistent with driver/rider/escort's single-word
+  // style) — this is the one place that mapping needs to happen.
+  const ROLE_LABELS = { roster: 'Trip Summary Roster', supervisor: 'Trip Supervisor' };
+
+  const requiredFields = ['first-name', 'last-name', 'phone', 'email', 'email-confirm', 'role', 'password', 'password-confirm'];
 
   function updateSubmitState() {
     const allFilled = requiredFields.every((id) => $(id).value.trim() !== '');
@@ -260,17 +330,54 @@
 
   $('signup-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const payload = {
-      firstName: $('first-name').value.trim(),
-      lastName: $('last-name').value.trim(),
-      phone: $('phone').value.trim(),
-      email: $('email').value.trim(),
-      role: $('role').value,
-      consentAt: new Date().toISOString()
-    };
+    const firstName = capitalizeFirst($('first-name').value.trim());
+    const lastName = capitalizeFirst($('last-name').value.trim());
+    const name = (firstName + ' ' + lastName).trim();
+    const phone = $('phone').value.trim();
+    const email = $('email').value.trim();
+    const emailConfirm = $('email-confirm').value.trim();
+    const role = $('role').value;
+    const password = $('password').value;
+    const passwordConfirm = $('password-confirm').value;
+    const consentAt = new Date().toISOString();
+
+    if (email.toLowerCase() !== emailConfirm.toLowerCase()) {
+      showMessage('error', 'Email and Confirm Email do not match.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      showMessage('error', 'Password and Confirm Password do not match.');
+      return;
+    }
 
     setBusy(true);
     showMessage('info', 'Registering...');
+
+    // Real Supabase account first (so this person can sign back in later at
+    // auth.html), then the existing roster-sheet webhook — same two-step
+    // pattern auth.html uses for driver/rider/escort signup.
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, contact: phone, role, smsConsent: true, consentAt },
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) {
+      setBusy(false);
+      showMessage('error', error.message);
+      return;
+    }
+    if (!data.session) {
+      setBusy(false);
+      clearMessageEl();
+      $('signup-form').reset();
+      $('signup-form').classList.add('hidden');
+      $('success-card').classList.remove('hidden');
+      return;
+    }
+
     try {
       const res = await fetch(cfg.scheduledTripsWebhookUrl, {
         method: 'POST',
@@ -278,21 +385,26 @@
           'Content-Type': 'application/json',
           'X-Dispatch-Secret': cfg.sharedSecret
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ firstName, lastName, phone, email, role: ROLE_LABELS[role], consentAt })
       });
       const body = await res.json();
       if (!res.ok) {
         setBusy(false);
-        showMessage('error', body.message || 'Could not complete registration.');
+        showMessage('error', body.message || 'Account created, but could not finish roster registration. Contact dispatch.');
         return;
       }
-      clearMessageEl();
-      $('signup-form').classList.add('hidden');
-      $('success-card').classList.remove('hidden');
     } catch (err) {
       setBusy(false);
-      showMessage('error', 'Could not reach the server. Please try again.');
+      showMessage('error', 'Account created, but could not reach the server to finish registration. Contact dispatch.');
+      return;
     }
+
+    // Confirm-email is off in this project, so signUp already returned a
+    // live session — go straight to auth.html, which auto-detects it and
+    // shows the Scheduled Trips overview (same as auth.html's own Create
+    // Account flow).
+    showMessage('success', 'Registered — signing you in...');
+    window.location.href = 'auth.html';
   });
 
   function clearMessageEl() {
