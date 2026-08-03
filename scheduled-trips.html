@@ -188,7 +188,7 @@
       <input type="email" id="email" autocomplete="email" placeholder="Email" aria-label="Email" required>
 
       <p class="consent-text">By submitting this form, you agree to receive trip notifications from Trip Dispatch by SMS and/or email, including trip status updates and escalation alerts. Message frequency varies. Msg &amp; data rates may apply for SMS. Reply STOP to opt out of texts, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
-      <label class="consent-checkbox"><input type="checkbox" id="sms-consent" required> I agree to receive SMS trip notifications.</label>
+      <label class="consent-checkbox"><input type="checkbox" id="sms-consent" required> I agree to receive SMS trip notifications</label>
 
       <select id="role" aria-label="Role" required>
         <option value="" disabled selected>Select a role…</option>
@@ -226,6 +226,16 @@
   requiredFields.forEach((id) => $(id).addEventListener('input', updateSubmitState));
   $('role').addEventListener('change', updateSubmitState);
   $('sms-consent').addEventListener('change', updateSubmitState);
+
+  // ---- Capitalize first letter of name fields as the user leaves them ----
+  ['first-name', 'last-name'].forEach((id) => {
+    $(id).addEventListener('blur', () => {
+      $(id).value = capitalizeFirst($(id).value.trim());
+    });
+  });
+  function capitalizeFirst(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+  }
 
   // Live-format as (XXX) XXX-XXXX while typing, matching the phone-formatted
   // requirement without needing a full input-mask library for one field.

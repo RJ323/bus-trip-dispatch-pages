@@ -306,8 +306,8 @@
 
         <input type="tel" id="signup-contact" autocomplete="tel" placeholder="Phone / Contact" aria-label="Phone / Contact" required>
 
-        <p class="consent-text">By entering your phone number, you agree to receive SMS messages from Trip Dispatch regarding trip assignments, status updates, and reminders. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
-        <label class="consent-checkbox"><input type="checkbox" id="signup-sms-consent" required> I agree to receive SMS trip notifications.</label>
+        <p class="consent-text">By submitting this form, you agree to receive SMS messages from Trip Dispatch regarding trip assignments, status updates, and reminders. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. We do not share or sell your information. <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
+        <label class="consent-checkbox"><input type="checkbox" id="signup-sms-consent" required> I agree to receive SMS trip notifications</label>
 
         <select id="signup-role" aria-label="Role" required>
           <option value="" disabled selected>Select a role…</option>
@@ -324,7 +324,7 @@
 
         <input type="password" id="signup-password-confirm" autocomplete="new-password" minlength="6" placeholder="Confirm Password" aria-label="Confirm Password" required>
 
-        <button type="submit" class="primary" id="signup-btn" style="width:100%;">Create Account</button>
+        <button type="submit" class="primary" id="signup-btn" style="width:100%;" disabled>Create Account</button>
       </fieldset>
     </form>
   </div>
@@ -479,6 +479,16 @@
     else if (digits.length > 0) formatted = '(' + digits;
     $('signup-contact').value = formatted;
   });
+
+  // ---- Gate Create Account until every field is filled and consent is checked ----
+  const signupRequiredFields = ['signup-first-name', 'signup-last-name', 'signup-contact', 'signup-role', 'signup-email', 'signup-email-confirm', 'signup-password', 'signup-password-confirm'];
+  function updateSignupSubmitState() {
+    const allFilled = signupRequiredFields.every((id) => $(id).value.trim() !== '');
+    $('signup-btn').disabled = !(allFilled && $('signup-sms-consent').checked);
+  }
+  signupRequiredFields.forEach((id) => $(id).addEventListener('input', updateSignupSubmitState));
+  $('signup-role').addEventListener('change', updateSignupSubmitState);
+  $('signup-sms-consent').addEventListener('change', updateSignupSubmitState);
 
   // ---- Sign up ----
   $('signup-form').addEventListener('submit', async (e) => {
