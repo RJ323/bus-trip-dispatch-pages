@@ -749,7 +749,8 @@
       + roleLine('Driver', 'driver', t.driverStatus, t.driverName)
       + roleLine(t.riderStatus2 ? 'Rider 1' : 'Rider', 'rider', t.riderStatus1, t.riderName1)
       + roleLine('Rider 2', 'rider', t.riderStatus2, t.riderName2)
-      + roleLine('Escort', 'escort', t.escortStatus, t.escortName)
+      + roleLine('Vehicle Escort', 'escort', t.vehicleEscortStatus, t.vehicleEscortName)
+      + roleLine('Motorcycle Escort', 'escort', t.motorcycleEscortStatus, t.motorcycleEscortName)
       + '</div>';
   }
 
@@ -821,14 +822,21 @@
         ? '<span class="trip-badge assignee">Assigned ' + escapeHtml(formatInitialLastName(currentProfile.name)) + '</span>'
         : '<span class="trip-badge available">Available</span>';
       const mapsLink = (loc) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc || '');
+      // Vehicle and motorcycle escort are independent, non-interchangeable
+      // slots — the same trip can show up as two separate cards here (one
+      // per type), so each needs its own label to tell them apart.
+      const escortTypeAttr = t.escortType ? ' data-escort-type="' + escapeHtml(t.escortType) + '"' : '';
+      const escortTypeLabel = t.escortType
+        ? '<span class="role-badge role-escort">' + (t.escortType === 'motorcycle' ? 'Motorcycle Escort' : 'Vehicle Escort') + '</span>'
+        : '';
       const actions = t.myStatus === 'available'
-        ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Accept</button>'
-          + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Decline</button></div>'
+        ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '"' + escortTypeAttr + '>Accept</button>'
+          + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '"' + escortTypeAttr + '>Decline</button></div>'
         : '';
       const stamp = t.myStatus === 'cancelled' ? '<div class="trip-cancelled-stamp">Canceled</div>' : '';
       return '<div class="trip-item ' + t.myStatus + '">'
         + stamp
-        + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
+        + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + escortTypeLabel + badge + '</div>'
         + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
         + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
         + ' &rarr; <a href="' + mapsLink(t.dropoffLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.dropoffLocation) + '</a></div>'
@@ -864,19 +872,22 @@
     }
 
     container.querySelectorAll('.trip-accept-btn').forEach((btn) => {
-      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'accept', rosterId));
+      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'accept', rosterId, btn.dataset.escortType));
     });
     container.querySelectorAll('.trip-decline-btn').forEach((btn) => {
-      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'decline', rosterId));
+      btn.addEventListener('click', () => handleRespond(btn.dataset.tripId, 'decline', rosterId, btn.dataset.escortType));
     });
   }
 
-  async function handleRespond(tripId, action, rosterId) {
+  async function handleRespond(tripId, action, rosterId, escortType) {
     showMessage('info', (action === 'accept' ? 'Accepting' : 'Declining') + ' trip ' + tripId + '...');
     const payload = { tripId, action };
     if (currentProfile.role === 'driver') payload.driverId = rosterId;
     else if (currentProfile.role === 'rider') payload.riderId = rosterId;
-    else if (currentProfile.role === 'escort') payload.escortId = rosterId;
+    else if (currentProfile.role === 'escort') {
+      payload.escortId = rosterId;
+      payload.escortType = escortType;
+    }
 
     try {
       const res = await fetch(cfg.respondWebhookUrl, {

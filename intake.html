@@ -208,24 +208,33 @@
        Header: X-Dispatch-Secret: <sharedSecret>
        Body (create): { action: 'create', tripDate, pickupTime,
                          pickupLocation, dropoffLocation, durationMin,
-                         rider1Needed?, rider2Needed?, escortNeeded? }
-       Body (update): body above + { action: 'update', tripId }
+                         rider1Needed?, rider2Needed?,
+                         vehicleEscortNeeded?, motorcycleEscortNeeded?,
+                         createdBy }
+       Body (update): body above (minus createdBy) + { action: 'update', tripId }
        Body (cancel): { action: 'cancel', tripId }
        200 -> { tripId, status, message }
        4xx -> { message } (e.g. already Filled, validation failure)
 
-  Riders (up to 2 independent slots) and the vehicle escort work like
-  drivers, not like a typed-in name: staff just flags each slot as needed
-  (rider1Needed/rider2Needed/escortNeeded booleans — no name/phone entered
-  here; rider2Needed is only meaningful when rider1Needed is also true —
-  most trips need just one rider, so leaving the 2nd rider box unchecked
-  keeps that slot blank/not-needed instead of sitting "Open" forever with
-  no one ever expected to fill it), n8n broadcasts to the Riders/Vehicle
-  Escorts roster the same way it broadcasts to Drivers, and the first
-  roster member to accept locks that slot (riderName1/2, escortName etc.
-  are then system-filled from whoever accepted).
-  riderStatus1/2 and escortStatus are blank (not needed), 'Open'
-  (broadcasting), or 'Filled'.
+  Riders (up to 2 independent slots) and the two escort types (vehicle,
+  motorcycle — also independent of each other, a trip can need one, the
+  other, or both) work like drivers, not like a typed-in name: staff just
+  flags each slot as needed (rider1Needed/rider2Needed/
+  vehicleEscortNeeded/motorcycleEscortNeeded booleans — no name/phone
+  entered here; rider2Needed is only meaningful when rider1Needed is also
+  true — most trips need just one rider, so leaving the 2nd rider box
+  unchecked keeps that slot blank/not-needed instead of sitting "Open"
+  forever with no one ever expected to fill it), n8n broadcasts to the
+  Riders/Vehicle Escorts roster the same way it broadcasts to Drivers
+  (the same Vehicle Escorts roster covers both escort types — it's the
+  trip's need that's split in two, not the roster), and the first roster
+  member to accept locks that slot (riderName1/2, vehicleEscortName,
+  motorcycleEscortName etc. are then system-filled from whoever accepted).
+  riderStatus1/2/vehicleEscortStatus/motorcycleEscortStatus are blank (not
+  needed), 'Open' (broadcasting), or 'Filled'.
+  createdBy is the staff member's self-reported name (required on create,
+  never resent on update) — intake.html has no staff login system, so
+  this is the only record of who created a given trip.
 -->
 
 <header class="console-header">
@@ -297,9 +306,10 @@
     </fieldset>
 
     <fieldset>
-      <legend>Vehicle Escort (optional)</legend>
+      <legend>Escort (optional)</legend>
 
-      <label><input type="checkbox" id="escort-toggle"> Escort needed</label>
+      <label><input type="checkbox" id="vehicle-escort-toggle"> Vehicle needed</label>
+      <label><input type="checkbox" id="motorcycle-escort-toggle"> Motorcycle needed</label>
       <small id="escort-status-display"></small>
     </fieldset>
 
@@ -464,8 +474,11 @@
         $('riders-status-display').innerHTML =
           describeSlot('Rider 1', trip.riderStatus1, trip.riderName1) +
           describeSlot('Rider 2', trip.riderStatus2, trip.riderName2);
-        $('escort-toggle').checked = !!trip.escortStatus;
-        $('escort-status-display').innerHTML = describeSlot('Escort', trip.escortStatus, trip.escortName);
+        $('vehicle-escort-toggle').checked = !!trip.vehicleEscortStatus;
+        $('motorcycle-escort-toggle').checked = !!trip.motorcycleEscortStatus;
+        $('escort-status-display').innerHTML =
+          describeSlot('Vehicle', trip.vehicleEscortStatus, trip.vehicleEscortName) +
+          describeSlot('Motorcycle', trip.motorcycleEscortStatus, trip.motorcycleEscortName);
         $('trip-id-value').textContent = trip.tripId;
         const statusEl = $('trip-status-value');
         // The big diagonal "Canceled" banner already covers the cancelled
@@ -509,7 +522,8 @@
       durationMin: durationMin,
       rider1Needed: $('rider1-toggle').checked,
       rider2Needed: $('rider1-toggle').checked && $('rider2-toggle').checked,
-      escortNeeded: $('escort-toggle').checked
+      vehicleEscortNeeded: $('vehicle-escort-toggle').checked,
+      motorcycleEscortNeeded: $('motorcycle-escort-toggle').checked
     };
     if (payload.action === 'update') {
       payload.tripId = loadedTripId;
