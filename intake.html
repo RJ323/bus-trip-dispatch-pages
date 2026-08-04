@@ -137,6 +137,27 @@
   .stamp-badge.status-filled { border-color: #16a34a; color: #16a34a; }
   .stamp-badge.status-cancelled { border-color: #b91c1c; color: #b91c1c; }
 
+  #trip-form { position: relative; }
+  .cancelled-stamp {
+    position: absolute;
+    top: 34%;
+    left: -6%;
+    right: -6%;
+    text-align: center;
+    transform: rotate(-8deg);
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #dc2626;
+    border-top: 4px solid #dc2626;
+    border-bottom: 4px solid #dc2626;
+    padding: 0.3rem 0;
+    background: rgba(220,38,38,0.1);
+    pointer-events: none;
+    z-index: 5;
+    text-transform: uppercase;
+  }
+
   .filled-name { color: #16a34a; font-weight: 800; }
 
   .gate-card {
@@ -235,6 +256,8 @@
   <form id="trip-form" class="hidden">
     <fieldset>
       <legend id="form-legend">New Trip</legend>
+
+      <div id="cancelled-stamp" class="cancelled-stamp hidden">Canceled</div>
 
       <div id="trip-id-display" class="hidden" style="margin-bottom:0.5rem;">
         <span class="mono" id="trip-id-value" style="font-weight:700;"></span>
@@ -347,6 +370,8 @@
     $('trip-form').classList.add('hidden');
     $('trip-id-display').classList.add('hidden');
     $('cancel-trip-btn').classList.add('hidden');
+    $('cancelled-stamp').classList.add('hidden');
+    $('save-btn').disabled = false;
     $('riders-status-display').innerHTML = '';
     $('escort-status-display').innerHTML = '';
     $('driver-status-display').innerHTML = '';
@@ -382,7 +407,8 @@
         trips.forEach((trip) => {
           const opt = document.createElement('option');
           opt.value = trip.tripId;
-          opt.textContent = trip.tripId + ' · ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + formatTime12Hour(trip.pickupTime) + ' · ' + trip.pickupLocation.split(',')[0];
+          const prefix = trip.status === 'Cancelled' ? 'CANCELED — ' : '';
+          opt.textContent = prefix + trip.tripId + ' · ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + formatTime12Hour(trip.pickupTime) + ' · ' + trip.pickupLocation.split(',')[0];
           select.appendChild(opt);
         });
         select.disabled = false;
@@ -434,6 +460,8 @@
         $('trip-id-display').classList.remove('hidden');
         $('form-legend').textContent = 'Edit Trip';
         $('cancel-trip-btn').classList.toggle('hidden', trip.status === 'Cancelled');
+        $('cancelled-stamp').classList.toggle('hidden', trip.status !== 'Cancelled');
+        $('save-btn').disabled = trip.status === 'Cancelled';
         $('trip-form').classList.remove('hidden');
         clearMessage();
       })

@@ -167,6 +167,7 @@
   .trip-group-heading:first-child { margin-top: 0; }
   .trip-group-heading.assigned { color: #16a34a; }
   .trip-group-heading.available { color: var(--amber); }
+  .trip-group-heading.cancelled { color: #dc2626; }
   .trip-group-heading .count {
     font-weight: 700;
     letter-spacing: normal;
@@ -180,6 +181,7 @@
     background: var(--card-border);
   }
   .trip-item {
+    position: relative;
     border: 1px solid var(--card-border);
     border-left: 3px solid var(--card-border);
     border-radius: 8px;
@@ -187,9 +189,30 @@
     margin-top: 0.65rem;
     text-align: left;
     font-size: 0.9rem;
+    overflow: hidden;
   }
   .trip-item.assigned { border-left-color: #16a34a; }
   .trip-item.available { border-left-color: var(--amber); }
+  .trip-item.cancelled { border-left-color: #dc2626; }
+  .trip-cancelled-stamp {
+    position: absolute;
+    top: 40%;
+    left: -8%;
+    right: -8%;
+    text-align: center;
+    transform: rotate(-8deg);
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #dc2626;
+    border-top: 3px solid #dc2626;
+    border-bottom: 3px solid #dc2626;
+    padding: 0.15rem 0;
+    background: rgba(220,38,38,0.1);
+    pointer-events: none;
+    z-index: 2;
+    text-transform: uppercase;
+  }
   .trip-item-top {
     display: flex;
     justify-content: space-between;
@@ -208,6 +231,7 @@
   }
   .trip-badge.available { background: #f59e0b14; color: var(--amber); }
   .trip-badge.assignee { background: #f59e0b14; color: var(--amber); }
+  .trip-badge.cancelled { background: #dc262614; color: #dc2626; }
   .trip-item .row { margin-bottom: 0; margin-top: 0.6rem; }
   .trip-item button { margin-top: 0; padding: 0.55rem 0.8rem; font-size: 0.85rem; }
   .trip-address a { color: var(--teal); }
@@ -712,7 +736,10 @@
       return '<div class="overview-role"><span class="role-badge role-' + roleClass + '">' + label + '</span>' + escapeHtml(text) + '</div>';
     }
 
-    return '<div class="trip-item">'
+    const cancelled = t.driverStatus === 'Cancelled';
+    const stamp = cancelled ? '<div class="trip-cancelled-stamp">Canceled</div>' : '';
+    return '<div class="trip-item' + (cancelled ? ' cancelled' : '') + '">'
+      + stamp
       + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span></div>'
       + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
       + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
@@ -784,7 +811,9 @@
       const durH = Math.floor((t.durationMin || 0) / 60);
       const durM = (t.durationMin || 0) % 60;
       const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
-      const badge = t.myStatus === 'assigned'
+      const badge = t.myStatus === 'cancelled'
+        ? '<span class="trip-badge cancelled">Cancelled</span>'
+        : t.myStatus === 'assigned'
         ? '<span class="trip-badge assignee">Assigned ' + escapeHtml(formatInitialLastName(currentProfile.name)) + '</span>'
         : '<span class="trip-badge available">Available</span>';
       const mapsLink = (loc) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc || '');
@@ -792,7 +821,9 @@
         ? '<div class="row"><button type="button" class="primary trip-accept-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Accept</button>'
           + '<button type="button" class="danger trip-decline-btn" data-trip-id="' + escapeHtml(t.tripId) + '">Decline</button></div>'
         : '';
+      const stamp = t.myStatus === 'cancelled' ? '<div class="trip-cancelled-stamp">Canceled</div>' : '';
       return '<div class="trip-item ' + t.myStatus + '">'
+        + stamp
         + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span>' + badge + '</div>'
         + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(t.pickupTime) + ' &middot; ' + durText + '</div>'
         + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
@@ -806,9 +837,12 @@
     } else {
       // Assigned trips surface before available ones, each under its own
       // labeled group, so a driver/rider/escort can't mistake a slot they
-      // still need to accept for one they're already committed to.
+      // still need to accept for one they're already committed to. Cancelled
+      // trips get their own group rather than disappearing, so a driver who
+      // saw a trip earlier doesn't wonder if it silently vanished.
       const assigned = trips.filter((t) => t.myStatus === 'assigned');
-      const available = trips.filter((t) => t.myStatus !== 'assigned');
+      const cancelled = trips.filter((t) => t.myStatus === 'cancelled');
+      const available = trips.filter((t) => t.myStatus === 'available');
       let html = '';
       if (assigned.length) {
         html += '<div class="trip-group-heading assigned">Assigned <span class="count">(' + assigned.length + ')</span></div>';
@@ -817,6 +851,10 @@
       if (available.length) {
         html += '<div class="trip-group-heading available">Available <span class="count">(' + available.length + ')</span></div>';
         html += available.map(renderTrip).join('');
+      }
+      if (cancelled.length) {
+        html += '<div class="trip-group-heading cancelled">Cancelled <span class="count">(' + cancelled.length + ')</span></div>';
+        html += cancelled.map(renderTrip).join('');
       }
       container.innerHTML = html;
     }
