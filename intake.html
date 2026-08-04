@@ -380,7 +380,7 @@
         trips.forEach((trip) => {
           const opt = document.createElement('option');
           opt.value = trip.tripId;
-          opt.textContent = trip.tripId + ' — ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + trip.pickupTime + ' — ' + trip.pickupLocation + ' (' + formatTripSlotStatus(trip) + ')';
+          opt.textContent = trip.tripId + ' · ' + formatDateMMDDYYYY(trip.tripDate) + ' ' + trip.pickupTime + ' · ' + trip.pickupLocation.split(',')[0] + ' · ' + formatTripSlotStatus(trip);
           select.appendChild(opt);
         });
         select.disabled = false;
@@ -519,14 +519,14 @@
   // role's status spelled out separately instead of implying everything's
   // covered.
   function formatTripSlotStatus(trip) {
-    const parts = ['Driver: ' + trip.status];
+    const parts = ['D:' + trip.status];
     if (trip.riderStatus2) {
-      parts.push('Rider 1: ' + trip.riderStatus1, 'Rider 2: ' + trip.riderStatus2);
+      parts.push('R1:' + trip.riderStatus1, 'R2:' + trip.riderStatus2);
     } else if (trip.riderStatus1) {
-      parts.push('Rider: ' + trip.riderStatus1);
+      parts.push('R:' + trip.riderStatus1);
     }
-    if (trip.escortStatus) parts.push('Escort: ' + trip.escortStatus);
-    return parts.join(', ');
+    if (trip.escortStatus) parts.push('E:' + trip.escortStatus);
+    return parts.join(' ');
   }
   function setSaving(saving) {
     $('save-btn').disabled = saving;
