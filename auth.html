@@ -197,11 +197,11 @@
   .trip-cancelled-stamp {
     position: absolute;
     top: 40%;
-    left: -8%;
-    right: -8%;
+    left: 0;
+    right: 0;
     text-align: center;
     transform: rotate(-8deg);
-    font-size: 1.35rem;
+    font-size: 1.15rem;
     font-weight: 900;
     letter-spacing: 0.1em;
     color: #dc2626;
@@ -231,7 +231,6 @@
   }
   .trip-badge.available { background: #f59e0b14; color: var(--amber); }
   .trip-badge.assignee { background: #f59e0b14; color: var(--amber); }
-  .trip-badge.cancelled { background: #dc262614; color: #dc2626; }
   .trip-item .row { margin-bottom: 0; margin-top: 0.6rem; }
   .trip-item button { margin-top: 0; padding: 0.55rem 0.8rem; font-size: 0.85rem; }
   .trip-address a { color: var(--teal); }
@@ -811,8 +810,10 @@
       const durH = Math.floor((t.durationMin || 0) / 60);
       const durM = (t.durationMin || 0) % 60;
       const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
+      // The big diagonal "Canceled" stamp already covers the cancelled
+      // case, so it gets no small badge here — showing both was redundant.
       const badge = t.myStatus === 'cancelled'
-        ? '<span class="trip-badge cancelled">Cancelled</span>'
+        ? ''
         : t.myStatus === 'assigned'
         ? '<span class="trip-badge assignee">Assigned ' + escapeHtml(formatInitialLastName(currentProfile.name)) + '</span>'
         : '<span class="trip-badge available">Available</span>';

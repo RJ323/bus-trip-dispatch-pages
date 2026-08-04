@@ -81,6 +81,8 @@
   #message.success { display: block; background: #16a34a14; border-color: #16a34a; }
 
   fieldset {
+    position: relative;
+    overflow: hidden;
     border: 1px solid var(--card-border);
     border-radius: 10px;
     padding: 1rem 1.1rem;
@@ -137,15 +139,14 @@
   .stamp-badge.status-filled { border-color: #16a34a; color: #16a34a; }
   .stamp-badge.status-cancelled { border-color: #b91c1c; color: #b91c1c; }
 
-  #trip-form { position: relative; }
   .cancelled-stamp {
     position: absolute;
     top: 34%;
-    left: -6%;
-    right: -6%;
+    left: 0;
+    right: 0;
     text-align: center;
     transform: rotate(-8deg);
-    font-size: 2.4rem;
+    font-size: 2rem;
     font-weight: 900;
     letter-spacing: 0.12em;
     color: #dc2626;
@@ -452,8 +453,15 @@
         $('escort-status-display').innerHTML = describeSlot('Escort', trip.escortStatus, trip.escortName);
         $('trip-id-value').textContent = trip.tripId;
         const statusEl = $('trip-status-value');
-        statusEl.textContent = trip.status;
-        statusEl.className = 'stamp-badge status-' + String(trip.status).toLowerCase();
+        // The big diagonal "Canceled" banner already covers the cancelled
+        // case — showing this small badge too was redundant.
+        if (trip.status === 'Cancelled') {
+          statusEl.textContent = '';
+          statusEl.className = 'stamp-badge hidden';
+        } else {
+          statusEl.textContent = trip.status;
+          statusEl.className = 'stamp-badge status-' + String(trip.status).toLowerCase();
+        }
         $('driver-status-display').innerHTML = trip.status === 'Filled' && trip.driverName
           ? 'Driver: <span class="filled-name">' + escapeHtml(trip.driverName) + '</span>'
           : '';
