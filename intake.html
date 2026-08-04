@@ -268,7 +268,11 @@
         <span class="mono" id="trip-id-value" style="font-weight:700;"></span>
         <span id="trip-status-value" class="stamp-badge"></span>
         <div><small id="driver-status-display"></small></div>
+        <div><small id="created-by-display"></small></div>
       </div>
+
+      <label for="created-by-input" id="created-by-label">Your Name (Created By)</label>
+      <input type="text" id="created-by-input" placeholder="Your Name (Created By)" aria-label="Your Name (Created By)" required>
 
       <input type="date" id="trip-date" placeholder="Trip Date" aria-label="Trip Date" required>
 
@@ -380,13 +384,20 @@
     $('riders-status-display').innerHTML = '';
     $('escort-status-display').innerHTML = '';
     $('driver-status-display').innerHTML = '';
+    $('created-by-display').innerHTML = '';
     $('rider2-toggle').disabled = true;
     if (mode === 'create') {
       $('lookup-fieldset').classList.add('hidden');
       $('form-legend').textContent = 'New Trip';
+      $('created-by-label').classList.remove('hidden');
+      $('created-by-input').classList.remove('hidden');
+      $('created-by-input').required = true;
       $('trip-form').classList.remove('hidden');
     } else {
       $('lookup-fieldset').classList.remove('hidden');
+      $('created-by-label').classList.add('hidden');
+      $('created-by-input').classList.add('hidden');
+      $('created-by-input').required = false;
       loadTripsList();
     }
   }
@@ -469,6 +480,7 @@
         $('driver-status-display').innerHTML = trip.status === 'Filled' && trip.driverName
           ? 'Driver: <span class="filled-name">' + escapeHtml(trip.driverName) + '</span>'
           : '';
+        $('created-by-display').textContent = trip.createdBy ? 'Created by: ' + trip.createdBy : '';
         $('trip-id-display').classList.remove('hidden');
         $('form-legend').textContent = 'Edit Trip';
         $('cancel-trip-btn').classList.toggle('hidden', trip.status === 'Cancelled');
@@ -499,7 +511,11 @@
       rider2Needed: $('rider1-toggle').checked && $('rider2-toggle').checked,
       escortNeeded: $('escort-toggle').checked
     };
-    if (payload.action === 'update') payload.tripId = loadedTripId;
+    if (payload.action === 'update') {
+      payload.tripId = loadedTripId;
+    } else {
+      payload.createdBy = $('created-by-input').value.trim();
+    }
 
     setSaving(true);
     showMessage('info', 'Saving...');
