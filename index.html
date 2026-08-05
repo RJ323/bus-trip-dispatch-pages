@@ -20,11 +20,27 @@
   .landing-bg {
     position: relative;
     min-height: 100vh;
+    background-color: #0b1220;
     background-image:
       linear-gradient(rgba(0,0,0,0.28), rgba(0,0,0,0.28)),
       url("background.jpeg");
     background-size: cover;
     background-position: center;
+  }
+  /* Below ~700px wide (phones in portrait, where the viewport is much
+     taller than it is wide), "cover" has to scale the landscape photo up
+     so much to fill the height that most of the bus's width gets cropped
+     off-screen. Switch to "contain" here so the whole photo stays visible
+     — background-color above fills the letterboxed space above/below it
+     instead of leaving it blank/white. Wider viewports (tablet/desktop,
+     and phones in landscape) are close enough to the photo's own aspect
+     ratio that "cover" barely crops anything, so they keep the full-bleed
+     look. */
+  @media (max-width: 700px) {
+    .landing-bg {
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
   }
 
   .bottom-panel {
