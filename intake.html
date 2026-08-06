@@ -125,9 +125,6 @@
   .row > button, .row > div { flex: 1; }
   .hidden { display: none !important; }
   small { opacity: 0.75; }
-  .duration-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.75rem; }
-  .duration-row input { width: 80px; flex: none; margin-top: 0; }
-  .duration-row .duration-suffix { color: var(--slate); font-size: 0.9rem; }
 
   .stamp-badge {
     display: inline-flex;
@@ -287,24 +284,16 @@
       <label for="created-by-input" id="created-by-label">Created By</label>
       <input type="text" id="created-by-input" placeholder="Your Name" aria-label="Created By" required>
 
-      <label for="trip-date">Date</label>
-      <input type="date" id="trip-date" aria-label="Trip Date" required>
+      <input type="date" id="trip-date" placeholder="Trip Date" aria-label="Trip Date" required>
 
-      <label for="pickup-time">Time</label>
-      <input type="time" id="pickup-time" aria-label="Pickup Time" required>
+      <input type="time" id="pickup-time" placeholder="Pickup Time" aria-label="Pickup Time" required>
 
-      <label for="pickup-location">Pickup Location</label>
       <input type="text" id="pickup-location" placeholder="Pickup Location" aria-label="Pickup Location" required>
 
-      <label for="dropoff-location">Dropoff Location</label>
       <input type="text" id="dropoff-location" placeholder="Dropoff Location" aria-label="Dropoff Location" required>
 
-      <label for="duration-hours">Duration</label>
-      <div class="duration-row">
-        <input type="number" id="duration-hours" min="1" step="1" inputmode="numeric" aria-label="Duration in hours">
-        <span class="duration-suffix">hours</span>
-      </div>
-      <small>Estimated — actual time may vary.</small>
+      <input type="number" id="duration-hours" min="1" step="1" placeholder="Duration (Hours)" inputmode="numeric" aria-label="Duration in hours">
+      <small>Estimated trip duration, in hours — actual time may vary.</small>
     </fieldset>
 
     <fieldset>
