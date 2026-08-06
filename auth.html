@@ -502,8 +502,19 @@
     }
   });
 
-  // ---- Capitalize first letter of name fields as the user leaves them ----
+  // ---- Capitalize first letter of name fields as the user types, and
+  // trim stray whitespace once they leave the field ----
   ['signup-first-name', 'signup-last-name'].forEach((id) => {
+    $(id).addEventListener('input', () => {
+      const el = $(id);
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const capitalized = capitalizeFirst(el.value);
+      if (capitalized !== el.value) {
+        el.value = capitalized;
+        el.setSelectionRange(start, end);
+      }
+    });
     $(id).addEventListener('blur', () => {
       $(id).value = capitalizeFirst($(id).value.trim());
     });
