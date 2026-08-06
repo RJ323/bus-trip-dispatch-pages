@@ -12,11 +12,11 @@
     --ink-2: #16294d;
     --blue: #2563eb;
     --amber: #f59e0b;
-    --paper: #0b1220;
-    --slate: #b8c4d6;
-    --slate-light: #7488a6;
-    --card: #12203a;
-    --card-border: #24334f;
+    --paper: #dbe4ee;
+    --slate: #475569;
+    --slate-light: #94a3b8;
+    --card: #f7fafc;
+    --card-border: #cbd5e1;
   }
   * { box-sizing: border-box; }
   body {
@@ -24,7 +24,7 @@
     margin: 0;
     line-height: 1.45;
     background: var(--paper);
-    color: #e7ebf3;
+    color: var(--ink-2);
   }
   a { color: var(--blue); }
   .mono {
@@ -79,6 +79,7 @@
   }
   legend {
     padding: 0 0.4rem;
+    background: var(--card);
     font-weight: 800;
     font-size: 1.2rem;
     letter-spacing: 0.02em;
@@ -94,8 +95,8 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     background-color: var(--card);
-    color: #e7ebf3;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%237488a6' stroke-width='2'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+    color: var(--ink-2);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.7rem center;
     background-size: 1rem;
@@ -103,7 +104,7 @@
   }
   select option {
     background-color: var(--card);
-    color: #e7ebf3;
+    color: var(--ink-2);
   }
   input[type="checkbox"] {
     width: auto; padding: 0; border: none; background: none; margin-right: 0.4rem; margin-top: 0; vertical-align: middle;
@@ -124,6 +125,9 @@
   .row > button, .row > div { flex: 1; }
   .hidden { display: none !important; }
   small { opacity: 0.75; }
+  .duration-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.75rem; }
+  .duration-row input { width: 80px; flex: none; margin-top: 0; }
+  .duration-row .duration-suffix { color: var(--slate); font-size: 0.9rem; }
 
   .stamp-badge {
     display: inline-flex;
@@ -280,12 +284,14 @@
         <div><small id="created-by-display"></small></div>
       </div>
 
-      <label for="created-by-input" id="created-by-label">Your Name (Created By)</label>
-      <input type="text" id="created-by-input" placeholder="Your Name (Created By)" aria-label="Your Name (Created By)" required>
+      <label for="created-by-input" id="created-by-label">Created By</label>
+      <input type="text" id="created-by-input" placeholder="Your Name" aria-label="Created By" required>
 
-      <input type="date" id="trip-date" placeholder="Trip Date" aria-label="Trip Date" required>
+      <label for="trip-date">Date</label>
+      <input type="date" id="trip-date" aria-label="Trip Date" required>
 
-      <input type="time" id="pickup-time" placeholder="Pickup Time" aria-label="Pickup Time" required>
+      <label for="pickup-time">Time</label>
+      <input type="time" id="pickup-time" aria-label="Pickup Time" required>
 
       <label for="pickup-location">Pickup Location</label>
       <input type="text" id="pickup-location" placeholder="Pickup Location" aria-label="Pickup Location" required>
@@ -293,8 +299,12 @@
       <label for="dropoff-location">Dropoff Location</label>
       <input type="text" id="dropoff-location" placeholder="Dropoff Location" aria-label="Dropoff Location" required>
 
-      <input type="number" id="duration-hours" min="1" step="1" placeholder="Duration (Hours)" inputmode="numeric" aria-label="Duration in hours">
-      <small>Estimated trip duration, in hours — actual time may vary.</small>
+      <label for="duration-hours">Duration</label>
+      <div class="duration-row">
+        <input type="number" id="duration-hours" min="1" step="1" inputmode="numeric" aria-label="Duration in hours">
+        <span class="duration-suffix">hours</span>
+      </div>
+      <small>Estimated — actual time may vary.</small>
     </fieldset>
 
     <fieldset>
