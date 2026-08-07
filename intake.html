@@ -12,6 +12,8 @@
     --ink-2: #16294d;
     --blue: #2563eb;
     --amber: #f59e0b;
+    --teal: #0d9488;
+    --coral: #f2725a;
     --paper: #dbe4ee;
     --slate: #475569;
     --slate-light: #94a3b8;
@@ -169,6 +171,97 @@
 
   .filled-name { color: #16a34a; font-weight: 800; }
 
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    font-weight: 800;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-right: 0.4rem;
+  }
+  .role-badge.role-driver { background: #2563eb14; color: var(--blue); }
+  .role-badge.role-rider  { background: #0d948814; color: var(--teal); }
+  .role-badge.role-escort { background: #f2725a14; color: var(--coral); }
+  .overview-role { margin-top: 0.35rem; font-size: 0.85rem; }
+  .trip-item {
+    position: relative;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    margin-top: 0.65rem;
+    text-align: left;
+    font-size: 0.9rem;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  .trip-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
+  .trip-address a { color: var(--teal); }
+
+  .cal-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.85rem 0.85rem 1rem;
+  }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+  .cal-month-label { font-weight: 800; font-size: 0.92rem; letter-spacing: 0.01em; }
+  .cal-nav-btn {
+    background: transparent;
+    border: 1.5px solid var(--card-border);
+    color: inherit;
+    border-radius: 6px;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    margin-top: 0;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .cal-nav-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-weekday {
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate-light);
+    padding: 0.2rem 0 0.3rem;
+  }
+  .cal-day {
+    min-height: 2.2rem;
+    border-radius: 5px;
+    padding: 0.15rem 0.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    border: 1px solid transparent;
+  }
+  .cal-day-num { font-size: 0.62rem; font-weight: 600; color: var(--slate); }
+  .cal-day.other-month { opacity: 0.35; }
+  .cal-day.today { border-color: var(--blue); }
+  .cal-day.today .cal-day-num { color: var(--blue); font-weight: 800; }
+  .cal-day.has-trips { cursor: pointer; background: var(--paper); }
+  .cal-day.has-trips:hover { background: var(--card-border); }
+  .cal-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; border: 1.25px solid transparent; box-sizing: border-box; }
+  .cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-top: 0.6rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--card-border);
+  }
+  .cal-legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; color: var(--slate); }
+  .cal-legend-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.25px solid transparent; box-sizing: border-box; }
+  .cal-empty { text-align: center; font-size: 0.85rem; color: var(--slate-light); padding: 0.6rem 0 0; }
+
   .gate-card {
     background: var(--card);
     border: 1px solid var(--card-border);
@@ -262,6 +355,18 @@
     <button class="secondary" id="mode-edit">Load Existing Trip</button>
   </div>
   <p style="text-align:center; font-size:0.95rem; margin:0 0 1.25rem;"><a href="home.html">&larr; Back</a></p>
+
+  <fieldset id="create-calendar-fieldset" class="hidden">
+    <legend>Trip Calendar</legend>
+    <div id="create-calendar"></div>
+    <div id="create-calendar-detail"></div>
+  </fieldset>
+
+  <fieldset id="edit-calendar-fieldset" class="hidden">
+    <legend>Trip Calendar</legend>
+    <div id="edit-calendar"></div>
+    <div id="edit-calendar-detail"></div>
+  </fieldset>
 
   <div id="message"></div>
 
@@ -357,6 +462,201 @@
     });
   }
 
+  // ---- Trip calendar (month view, prev/next nav, dots) ----
+  // Duplicated from auth.html rather than shared, matching this project's
+  // convention of copying small helpers per-page instead of an external
+  // JS file (see capitalizeFirst/liveCapitalize above). Month navigation
+  // filters client-side over an already-fetched trips array — no per-click
+  // network round-trip.
+  function initTripCalendar(containerId, opts) {
+    const container = $(containerId);
+    let current = new Date();
+    current.setDate(1);
+    let trips = [];
+
+    function slotColorVar(slot) {
+      return opts.colorMode === 'single' ? opts.singleColorVar : ((opts.roleColors && opts.roleColors[slot.role]) || '--blue');
+    }
+
+    function render() {
+      const year = current.getFullYear();
+      const month = current.getMonth();
+      const monthLabel = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const startDow = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrevMonth = new Date(year, month, 0).getDate();
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const byDate = {};
+      trips.forEach((t) => {
+        if (!t.tripDate) return;
+        const d = new Date(t.tripDate + 'T00:00:00');
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          (byDate[t.tripDate] = byDate[t.tripDate] || []).push(t);
+        }
+      });
+
+      let cellsHtml = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((w) => '<div class="cal-weekday">' + w + '</div>').join('');
+      const totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
+      for (let i = 0; i < totalCells; i++) {
+        const dayNum = i - startDow + 1;
+        let cellDate, otherMonth = false;
+        if (dayNum < 1) { cellDate = new Date(year, month - 1, daysInPrevMonth + dayNum); otherMonth = true; }
+        else if (dayNum > daysInMonth) { cellDate = new Date(year, month + 1, dayNum - daysInMonth); otherMonth = true; }
+        else { cellDate = new Date(year, month, dayNum); }
+        const dateStr = cellDate.getFullYear() + '-' + String(cellDate.getMonth() + 1).padStart(2, '0') + '-' + String(cellDate.getDate()).padStart(2, '0');
+        const dayTrips = !otherMonth ? (byDate[dateStr] || []) : [];
+        const slots = [];
+        dayTrips.forEach((t) => (opts.getSlots(t) || []).forEach((s) => slots.push(s)));
+
+        const dotsHtml = slots.map((s) => {
+          const colorVar = slotColorVar(s);
+          const style = s.open
+            ? 'border-color: var(' + colorVar + '); background: transparent;'
+            : 'background: var(' + colorVar + '); border-color: var(' + colorVar + ');';
+          return '<span class="cal-dot" style="' + style + '"></span>';
+        }).join('');
+
+        const classes = ['cal-day'];
+        if (otherMonth) classes.push('other-month');
+        if (dateStr === todayStr) classes.push('today');
+        if (!otherMonth && slots.length) classes.push('has-trips');
+
+        cellsHtml += '<div class="' + classes.join(' ') + '"' + (!otherMonth && slots.length ? ' data-date="' + dateStr + '"' : '') + '>'
+          + '<span class="cal-day-num">' + cellDate.getDate() + '</span>'
+          + '<span class="cal-dots">' + dotsHtml + '</span>'
+          + '</div>';
+      }
+
+      const legendHtml = opts.legend.map((l) => {
+        const style = l.open
+          ? 'border-color: var(' + l.colorVar + '); background: transparent;'
+          : 'background: var(' + l.colorVar + '); border-color: var(' + l.colorVar + ');';
+        return '<span class="cal-legend-item"><span class="cal-legend-dot" style="' + style + '"></span>' + escapeHtml(l.label) + '</span>';
+      }).join('');
+      const emptyHtml = Object.keys(byDate).length ? '' : '<div class="cal-empty">No trips this month.</div>';
+
+      container.innerHTML = '<div class="cal-card">'
+        + '<div class="cal-header">'
+        + '<button type="button" class="cal-nav-btn" data-nav="-1" aria-label="Previous month">&larr;</button>'
+        + '<span class="cal-month-label">' + monthLabel + '</span>'
+        + '<button type="button" class="cal-nav-btn" data-nav="1" aria-label="Next month">&rarr;</button>'
+        + '</div>'
+        + '<div class="cal-grid">' + cellsHtml + '</div>'
+        + emptyHtml
+        + '<div class="cal-legend">' + legendHtml + '</div>'
+        + '</div>';
+
+      container.querySelectorAll('[data-nav]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          current = new Date(current.getFullYear(), current.getMonth() + Number(btn.dataset.nav), 1);
+          render();
+        });
+      });
+      container.querySelectorAll('.cal-day.has-trips').forEach((cell) => {
+        cell.addEventListener('click', () => opts.onDayClick(cell.dataset.date, byDate[cell.dataset.date] || []));
+      });
+    }
+
+    render();
+    return { setTrips(newTrips) { trips = newTrips || []; render(); } };
+  }
+
+  // Reads whichever role fields are present on a trip object and turns
+  // them into calendar dot slots, skipping any slot that isn't actually
+  // needed (blank) or was cancelled — dots are only ever the role's
+  // color, hollow (open) or solid (filled), never a third neutral state.
+  function deriveFullSlots(t) {
+    const slots = [];
+    const add = (role, status) => { if (status && status !== 'Cancelled') slots.push({ role, open: status === 'Open' }); };
+    add('driver', t.driverStatus);
+    add('rider', t.riderStatus1);
+    add('rider', t.riderStatus2);
+    add('escort', t.vehicleEscortStatus);
+    add('escort', t.motorcycleEscortStatus);
+    return slots;
+  }
+
+  function renderTripDetailCard(t, full) {
+    const durH = Math.floor((t.durationMin || 0) / 60);
+    const durM = (t.durationMin || 0) % 60;
+    const durText = (durH ? durH + 'h ' : '') + (durM ? durM + 'm' : '') || '0m';
+    const mapsLink = (loc) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc || '');
+    function roleLine(label, roleClass, status, name) {
+      if (!status) return '';
+      const text = status === 'Filled' && name ? name : status;
+      return '<div class="overview-role"><span class="role-badge role-' + roleClass + '">' + label + '</span>' + escapeHtml(text) + '</div>';
+    }
+    const roleLines = !full ? '' :
+      roleLine('Driver', 'driver', t.driverStatus, t.driverName)
+      + roleLine(t.riderStatus2 ? 'Rider 1' : 'Rider', 'rider', t.riderStatus1, t.riderName1)
+      + roleLine('Rider 2', 'rider', t.riderStatus2, t.riderName2)
+      + roleLine('Vehicle Escort', 'escort', t.vehicleEscortStatus, t.vehicleEscortName)
+      + roleLine('Motorcycle Escort', 'escort', t.motorcycleEscortStatus, t.motorcycleEscortName);
+    return '<div class="trip-item" data-trip-id="' + escapeHtml(t.tripId) + '">'
+      + '<div class="trip-item-top"><span class="mono">' + escapeHtml(t.tripId) + '</span></div>'
+      + '<div>' + escapeHtml(formatDateMMDDYYYY(t.tripDate)) + ' ' + escapeHtml(formatTime12Hour(t.pickupTime)) + ' &middot; ' + durText + '</div>'
+      + '<div class="trip-address"><a href="' + mapsLink(t.pickupLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.pickupLocation) + '</a>'
+      + ' &rarr; <a href="' + mapsLink(t.dropoffLocation) + '" target="_blank" rel="noopener">' + escapeHtml(t.dropoffLocation) + '</a></div>'
+      + roleLines
+      + '</div>';
+  }
+
+  // Same highlight-then-fade treatment as auth.html's calendars, so every
+  // calendar-click-to-detail interaction across the site looks and feels
+  // the same, including how long the highlight stays visible.
+  function highlightCard(el, colorVar, scroll) {
+    el.style.outline = '2px solid var(' + (colorVar || '--blue') + ')';
+    el.style.outlineOffset = '2px';
+    setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 4000);
+    if (scroll !== false) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function renderDetail(containerId, dayTrips, full) {
+    const el = $(containerId);
+    el.innerHTML = dayTrips.map((t) => renderTripDetailCard(t, full)).join('');
+    if (dayTrips.length) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.querySelectorAll('[data-trip-id]').forEach((card) => highlightCard(card, '--blue', false));
+    }
+  }
+
+  // Create Trip: no login/role context at all here, so this is a single
+  // always-solid marker (just "a trip exists this day"), not role-colored,
+  // and its detail card is read-only pickup/dropoff/duration only — purely
+  // to help staff spot scheduling conflicts before creating a new trip.
+  const createCalendar = initTripCalendar('create-calendar', {
+    colorMode: 'single',
+    singleColorVar: '--blue',
+    getSlots: () => [{ open: false }],
+    legend: [{ colorVar: '--blue', label: 'Trip scheduled' }],
+    onDayClick: (date, dayTrips) => renderDetail('create-calendar-detail', dayTrips, false)
+  });
+
+  // Load Trip: full status view, identical in behavior to the Scheduled
+  // Trips calendar in auth.html. Clicking a date never touches the
+  // lookup dropdown/form — it only scrolls to a read-only detail card.
+  const editCalendar = initTripCalendar('edit-calendar', {
+    colorMode: 'multi',
+    roleColors: { driver: '--blue', rider: '--teal', escort: '--coral' },
+    getSlots: deriveFullSlots,
+    legend: [
+      { colorVar: '--blue', label: 'Driver' },
+      { colorVar: '--teal', label: 'Rider' },
+      { colorVar: '--coral', label: 'Escort' },
+      { colorVar: '--slate', label: 'Open', open: true },
+      { colorVar: '--slate', label: 'Filled', open: false }
+    ],
+    onDayClick: (date, dayTrips) => renderDetail('edit-calendar-detail', dayTrips, true)
+  });
+
+  function loadCreateCalendarTrips() {
+    fetch(cfg.tripsListWebhookUrl, { headers: { 'X-Dispatch-Secret': cfg.sharedSecret } })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((trips) => createCalendar.setTrips(trips))
+      .catch(() => {});
+  }
+
   // ---- Gate ----
   const gate = $('gate'), app = $('app');
   if (!cfg || !cfg.sharedSecret) {
@@ -424,11 +724,16 @@
       $('created-by-input').classList.remove('hidden');
       $('created-by-input').required = true;
       $('trip-form').classList.remove('hidden');
+      $('create-calendar-fieldset').classList.remove('hidden');
+      $('edit-calendar-fieldset').classList.add('hidden');
+      loadCreateCalendarTrips();
     } else {
       $('lookup-fieldset').classList.remove('hidden');
       $('created-by-label').classList.add('hidden');
       $('created-by-input').classList.add('hidden');
       $('created-by-input').required = false;
+      $('create-calendar-fieldset').classList.add('hidden');
+      $('edit-calendar-fieldset').classList.remove('hidden');
       loadTripsList();
     }
   }
@@ -459,6 +764,7 @@
           select.appendChild(opt);
         });
         select.disabled = false;
+        editCalendar.setTrips(trips);
       })
       .catch((err) => {
         select.innerHTML = '<option value="">Could not load trips</option>';
